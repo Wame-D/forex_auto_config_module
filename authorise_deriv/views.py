@@ -5,15 +5,12 @@ from django.http import JsonResponse
 from deriv_api import DerivAPI
 from django.views.decorators.csrf import csrf_exempt
 import json
-import logging
-logger = logging.getLogger(__name__)
 
 # Initialize DerivAPI client
 app_id = 65102
 
 @csrf_exempt
 def authorize_user(request):
-     logger.info(f"Received request: {request.body.decode('utf-8')}");
     if request.method == "POST":
         try:
             # data = json.loads(request.body)
