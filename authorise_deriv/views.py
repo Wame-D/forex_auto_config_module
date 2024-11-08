@@ -13,8 +13,8 @@ app_id = 65102
 def authorize_user(request):
     if request.method == "POST":
         try:
-            # data = json.loads(request.body)
-            data = json.loads(request.body.decode('utf-8'))
+            data = json.loads(request.body)
+            # data = json.loads(request.body.decode('utf-8'))
             token = data.get("token")
             if not token:
                 return JsonResponse({"error": "Token is required"}, status=400)
