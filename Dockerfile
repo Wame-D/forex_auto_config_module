@@ -32,7 +32,7 @@ COPY . .
 # Set the environment variables
 ENV VIRTUAL_ENV=/app/venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
-ENV PORT=8001
+ENV PORT=8000
 
 # Expose the port for the web app
 EXPOSE ${PORT}
