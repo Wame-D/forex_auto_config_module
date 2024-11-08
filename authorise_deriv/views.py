@@ -10,7 +10,7 @@ import json
 app_id = 65102
 
 @csrf_exempt
-def authorize_user(request):
+async def authorize_user(request):
     if request.method == "POST":
         try:
             data = json.loads(request.body)
