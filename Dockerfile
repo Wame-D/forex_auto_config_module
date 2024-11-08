@@ -50,7 +50,7 @@ WORKDIR /app
 
 # Copy virtual environment from builder
 COPY --from=builder /app/venv venv
-COPY example_django example_django
+COPY django django
 
 ENV VIRTUAL_ENV=/app/venv
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
@@ -59,4 +59,4 @@ ENV PORT=8000
 EXPOSE ${PORT}
 
 # Dynamically set the number of workers based on available CPU cores
-CMD gunicorn --bind :${PORT} --workers $(($(nproc) * 2 + 1)) example_django.wsgi
+CMD gunicorn --bind :${PORT} --workers $(($(nproc) * 2 + 1)) django.wsgi
