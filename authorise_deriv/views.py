@@ -13,7 +13,7 @@ app_id = 65102
 
 @csrf_exempt
 def authorize_user(request):
-     logger.info(f"Received request: {request.body.decode('utf-8')}")
+     logger.info(f"Received request: {request.body.decode('utf-8')}");
     if request.method == "POST":
         try:
             # data = json.loads(request.body)
