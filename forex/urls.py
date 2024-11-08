@@ -16,7 +16,9 @@ Including another URLconf
 """
 from django.contrib import admin
 from django.urls import path
+from authorise_deriv import views  # Corrected import
 
 urlpatterns = [
     path('admin/', admin.site.urls),
+    path('authorize/', views.authorize_user, name='authorize_user'),
 ]
