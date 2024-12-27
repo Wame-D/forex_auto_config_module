@@ -2,7 +2,8 @@
 """Django's command-line utility for administrative tasks."""
 import os
 import sys
-
+# from signals import server_started
+# from forex.signals import server_started
 
 def main():
     """Run administrative tasks."""
@@ -16,7 +17,9 @@ def main():
             "forget to activate a virtual environment?"
         ) from exc
     execute_from_command_line(sys.argv)
+    # server_started.send_sender(main)
 
+    # server_started.send(sender=main)
 
 if __name__ == '__main__':
     main()
