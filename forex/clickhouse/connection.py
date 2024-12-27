@@ -13,7 +13,7 @@ def get_clickhouse_client():
         _clickhouse_client = clickhouse_connect.get_client(
             host='rerj5p7iz5.europe-west4.gcp.clickhouse.cloud',
             user='default',
-            password='5u59TMG6u_1Jl',
+            password='1xf_jEyJH8gV9',
             secure=True
         )
         print("Result:", _clickhouse_client.query("SELECT 1").result_set[0][0])
