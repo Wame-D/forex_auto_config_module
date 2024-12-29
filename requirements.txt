@@ -9,3 +9,6 @@ python_deriv_api
 django-cors-headers
 pytz
 clickhouse-connect
+djangorestframework
+drf-yasg
+
