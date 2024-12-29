@@ -7,3 +7,5 @@ tzdata==2024.2
 whitenoise==6.8.2
 python_deriv_api
 django-cors-headers
+pytz
+clickhouse-connect

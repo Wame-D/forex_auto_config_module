@@ -1,4 +1,3 @@
-# from clickhouse_connect import Client
 import clickhouse_connect
 
 # Singleton instance of the ClickHouse client
