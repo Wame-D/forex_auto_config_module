@@ -7,7 +7,7 @@ import json
 from deriv_api import DerivAPI
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-
+from authorise_deriv.models import ForexData 
 # Initialize DerivAPI client
 app_id = 65102
 
@@ -56,3 +56,14 @@ async def authorize_user(request):
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Invalid request method"}, status=405)
+@api_view(['GET'])
+def get_forex_data(request):
+    """
+    Get forex data from the database.
+    Returns a list of forex data in JSON format.
+    """
+    try:
+        forex_data = ForexData.objects.all().values()  # Fetch data from the database
+        return JsonResponse(list(forex_data), safe=False, status=status.HTTP_200_OK)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
