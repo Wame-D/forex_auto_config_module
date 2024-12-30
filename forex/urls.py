@@ -21,5 +21,5 @@ from authorise_deriv import views  # Corrected import
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('authorize/', views.authorize_user, name='authorize_user'),
-    path('marketdata/', include('marketdata.routes'))
+    path('trade/', include('trade.routes'))
 ]
