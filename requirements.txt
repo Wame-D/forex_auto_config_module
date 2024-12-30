@@ -11,4 +11,6 @@ pytz
 clickhouse-connect
 djangorestframework
 drf-yasg
-
+python-dotenv
+PyJWT
+cryptography
