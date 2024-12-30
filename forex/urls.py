@@ -48,9 +48,11 @@
 
 from django.contrib import admin
 from django.urls import path
-from authorise_deriv import views  # Corrected import
+from authorise_deriv.views import authorize_user
+from apache_superset.views import get_guest_token
 
 urlpatterns = [
     path('admin/', admin.site.urls),
-    path('authorize/', views.authorize_user, name='authorize_user'),
+    path('authorize/', authorize_user, name='authorize_user'),
+    path('generate-guest-token/', get_guest_token, name='generate_guest_token'),
 ]
