@@ -6,81 +6,107 @@ def send_request(ws, request):
     """Sends a request to the WebSocket connection and returns the response."""
     ws.send(json.dumps(request))
     response = ws.recv()
-    return json.loads(response)
+    response_data = json.loads(response)
+    if "error" in response_data:
+        print(f"Error in response: {response_data['error']}")
+    return response_data
 
-def main():
-    # Assumptions:
-    # 1. You have a valid Deriv API token with the `trading` scope enabled.
-    # 2. WebSocket connection is used for real-time communication with the API.
-    # 3. Replace `YOUR_API_TOKEN` with your actual API token.
+def main(request):
+    try:
+        url = "wss://ws.binaryws.com/websockets/v3?app_id=65102"
+        ws = websocket.create_connection(url)
+        print("WebSocket connection established.")
+    except Exception as e:
+        print(f"Failed to establish WebSocket connection: {e}")
+        return render(request, "index.html", {"message": f"Authorization failed: {e}"})
 
-    # Step 1: Establish a WebSocket connection
-    url = "wss://ws.binaryws.com/websockets/v3?app_id=65102"
-    ws = websocket.create_connection(url)
-
-    # Step 2: Authorize
-    token = "a1-PKLDfBJiVcn57wqKSC5TPNQvBhlvK"  # Replace with your API token
+    token = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"  # Replace with your API token
     authorize_request = {"authorize": token}
-    auth_response = send_request(ws, authorize_request)
-    if auth_response.get("error"):
-        print("Authorization failed:", auth_response["error"])
-        return
-    print("Authorization successful")
+    try:
+        auth_response = send_request(ws, authorize_request)
+        if auth_response.get("error"):
+            print("Authorization failed:", auth_response["error"])
+            return render(request, "index.html", {"message": f"Authorization failed: {auth_response['error']}"})
+        print("Authorization successful")
+    except Exception as e:
+        print(f"Authorization request failed: {e}")
+        return render(request, "index.html", {"message": f"Authorization request failed: {e}"})
 
-    # Step 3: Fetch Available Instruments
     active_symbols_request = {"active_symbols": "full"}
-    active_symbols_response = send_request(ws, active_symbols_request)
-    symbols = active_symbols_response.get("active_symbols", [])
-    print("Available instruments:", [symbol["symbol"] for symbol in symbols])
+    try:
+        active_symbols_response = send_request(ws, active_symbols_request)
+        symbols = active_symbols_response.get("active_symbols", [])
+    except Exception as e:
+        print(f"Failed to fetch available instruments: {e}")
+        return render(request, "index.html", {"message": f"Failed to fetch instruments: {e}"})
 
-    # Step 4: Get Contract Details for a specific symbol
-    symbol = "R_100"  # Replace with your desired symbol
+    symbol = "frxAUDUSD"
     contracts_for_request = {"contracts_for": symbol}
-    contracts_for_response = send_request(ws, contracts_for_request)
-    contracts = contracts_for_response.get("contracts_for", {}).get("available", [])
-    print(f"Contracts available for {symbol}:", contracts)
+    try:
+        contracts_for_response = send_request(ws, contracts_for_request)
+        contracts = contracts_for_response.get("contracts_for", {}).get("available", [])
+    except Exception as e:
+        print(f"Failed to fetch contracts for {symbol}: {e}")
+        return render(request, "index.html", {"message": f"Failed to fetch contracts: {e}"})
 
-    # Step 5: Request a Price (Proposal)
     proposal_request = {
         "proposal": 1,
-        "amount": 10,
         "basis": "stake",
-        "contract_type": "MULTUP",  # Set to "MULTUP" or "MULTDOWN"
+        "contract_type": "MULTUP",
         "currency": "USD",
-        "duration": 5,
-        "duration_unit": "t",
         "symbol": symbol,
+        "amount": 10,
+        "multiplier": 30,
         "limit_order": {
-            "take_profit": 150,  # Optional: Take profit limit
-            "stop_loss": 130    # Optional: Stop loss limit
-        },
-        "cancellation": "60m"  # Optional: Deal cancellation within 60 minutes
+            "take_profit": 7.90,
+            "stop_loss": 8.32
+        }
     }
-    proposal_response = send_request(ws, proposal_request)
-    proposal_id = proposal_response.get("proposal", {}).get("id")
-    print("Proposal received:", proposal_response)
 
-    # Step 6: Buy the Contract
+    try:
+        proposal_response = send_request(ws, proposal_request)
+        proposal_id = proposal_response.get("proposal", {}).get("id")
+        if not proposal_id:
+            print("No proposal ID received.")
+            return render(request, "index.html", {"message": "Failed to receive proposal ID."})
+        print("Proposal received:", proposal_response)
+    except Exception as e:
+        print(f"Failed to request proposal: {e}")
+        return render(request, "index.html", {"message": f"Failed to request proposal: {e}"})
+
     if proposal_id:
         buy_request = {"buy": proposal_id, "price": 10}
-        buy_response = send_request(ws, buy_request)
-        contract_id = buy_response.get("buy", {}).get("contract_id")
-        print("Contract purchased:", buy_response)
+        try:
+            buy_response = send_request(ws, buy_request)
+            print("Buy response:", buy_response)
+            contract_id = buy_response.get("buy", {}).get("contract_id")
+            if not contract_id:
+                print("Contract purchase failed: No contract ID returned.")
+                return render(request, "index.html", {"message": "Contract purchase failed."})
+            print("Contract purchased:", buy_response)
 
-        # Step 7: Monitor the Contract Status
-        if contract_id:
+            # Monitor contract status
             open_contract_request = {"proposal_open_contract": 1, "contract_id": contract_id}
-            open_contract_response = send_request(ws, open_contract_request)
-            print("Contract status:", open_contract_response)
+            try:
+                while True:
+                    open_contract_response = send_request(ws, open_contract_request)
+                    status = open_contract_response.get("proposal_open_contract", {}).get("status")
+                    print("Contract status:", status)
+                    if status == "open":  # Replace with the actual active status if different
+                        break
+            except Exception as e:
+                print(f"Failed to monitor contract status: {e}")
+                return render(request, "index.html", {"message": f"Failed to monitor contract status: {e}"})
 
-            # Step 8: Close the Contract Early (if needed)
-            sell_request = {"sell": contract_id, "price": 5}  # Adjust price if needed
-            sell_response = send_request(ws, sell_request)
-            print("Contract sold:", sell_response)
+        except Exception as e:
+            print(f"Failed to buy or monitor contract: {e}")
+            return render(request, "index.html", {"message": f"Failed to buy or monitor contract: {e}"})
 
-    # Close the WebSocket connection
-    ws.close()
+    try:
+        ws.close()
+        print("WebSocket connection closed.")
+    except Exception as e:
+        print(f"Error closing WebSocket connection: {e}")
+        return render(request, "index.html", {"message": f"Error closing WebSocket: {e}"})
 
-if __name__ == "__main__":
-    main()
-
+    return render(request, "index.html", {"message": "Trade completed successfully!"})
