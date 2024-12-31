@@ -11,7 +11,7 @@ def send_request(ws, request):
         print(f"Error in response: {response_data['error']}")
     return response_data
 
-def fxBuy(request):
+def fxTradeMultiplier (request):
     try:
         url = "wss://ws.binaryws.com/websockets/v3?app_id=65102"
         ws = websocket.create_connection(url)
@@ -83,7 +83,7 @@ def fxBuy(request):
             if not contract_id:
                 print("Contract purchase failed: No contract ID returned.")
                 return render(request, "index.html", {"message": "Contract purchase failed."})
-            print("Contract purchased:", buy_response)
+            print("Contract purchased:", contract_id)
 
             # Monitor contract status
             open_contract_request = {"proposal_open_contract": 1, "contract_id": contract_id, "subscribe": 1}
@@ -120,3 +120,46 @@ def fxBuy(request):
         return render(request, "index.html", {"message": f"Error closing WebSocket: {e}"})
 
     return render(request, "index.html", {"message": "Trade completed successfully!"})
+
+
+def fxCloseMultiplierTrade(request):
+    # Sell the contract (close the position)
+    try:
+        url = "wss://ws.binaryws.com/websockets/v3?app_id=65102"
+        ws = websocket.create_connection(url)
+        print("WebSocket connection established.")
+    except Exception as e:
+        print(f"Failed to establish WebSocket connection: {e}")
+        return render(request, "index.html", {"message": f"Authorization failed: {e}"})
+    
+    token = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"  # Replace with your API token
+    authorize_request = {"authorize": token}
+    try:
+        auth_response = send_request(ws, authorize_request)
+        if auth_response.get("error"):
+            print("Authorization failed:", auth_response["error"])
+            return render(request, "index.html", {"message": f"Authorization failed: {auth_response['error']}"} )
+        print("Authorization successful")
+    except Exception as e:
+        print(f"Authorization request failed: {e}")
+        return render(request, "index.html", {"message": f"Authorization request failed: {e}"})
+        
+    sell_request = {"sell": 267922541148, "price": 40}
+    try:
+        sell_response = send_request(ws, sell_request)
+        print("Sell response:", sell_response)
+        if sell_response.get("sell", {}).get("status") == "sold":
+            print("Contract successfully sold.")
+        else:
+            print("Failed to sell the contract:", sell_response)
+            return render(request, "index.html", {"message": "Failed to sell the contract."})
+    except Exception as e:
+        print(f"Failed to sell contract: {e}")
+        return render(request, "index.html", {"message": f"Failed to sell contract: {e}"})
+    
+    try:
+        ws.close()
+        print("WebSocket connection closed.")
+    except Exception as e:
+        print(f"Error closing WebSocket connection: {e}")
+        return render(request, "index.html", {"message": f"Error closing WebSocket: {e}"})

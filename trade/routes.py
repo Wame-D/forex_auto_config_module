@@ -1,6 +1,7 @@
 from django.urls import path
-from . import butFx
+from . import views
 
 urlpatterns = [
-    path('buy/', butFx.fxBuy, name='fxBuy'),
+    path('multiplier/', views.fxTradeMultiplier, name='fxTradeMultiplier'),
+    path('sell/', views.fxCloseMultiplierTrade, name='fxCloseMultiplierTrade'),
 ]
