@@ -11,7 +11,7 @@ def send_request(ws, request):
         print(f"Error in response: {response_data['error']}")
     return response_data
 
-def main(request):
+def fxBuy(request):
     try:
         url = "wss://ws.binaryws.com/websockets/v3?app_id=65102"
         ws = websocket.create_connection(url)
@@ -26,7 +26,7 @@ def main(request):
         auth_response = send_request(ws, authorize_request)
         if auth_response.get("error"):
             print("Authorization failed:", auth_response["error"])
-            return render(request, "index.html", {"message": f"Authorization failed: {auth_response['error']}"})
+            return render(request, "index.html", {"message": f"Authorization failed: {auth_response['error']}"} )
         print("Authorization successful")
     except Exception as e:
         print(f"Authorization request failed: {e}")
@@ -86,21 +86,31 @@ def main(request):
             print("Contract purchased:", buy_response)
 
             # Monitor contract status
-            open_contract_request = {"proposal_open_contract": 1, "contract_id": contract_id}
+            open_contract_request = {"proposal_open_contract": 1, "contract_id": contract_id, "subscribe": 1}
             try:
                 while True:
                     open_contract_response = send_request(ws, open_contract_request)
-                    status = open_contract_response.get("proposal_open_contract", {}).get("status")
-                    print("Contract status:", status)
-                    if status == "open":  # Replace with the actual active status if different
+                    contract_details = open_contract_response.get("proposal_open_contract", {})
+                    status = contract_details.get("status")
+                    # print("Contract details:", contract_details)
+
+                    if status == "open":
+                        print("Contract is Open")
                         break
+
+                    if status == "closed":
+                        print("Contract is closed. Exiting monitoring loop.")
+                        break
+
+                    # custom logic for handling contract updates here.
+
             except Exception as e:
-                print(f"Failed to monitor contract status: {e}")
+                print(f"Failed to monitor contract status continuously: {e}")
                 return render(request, "index.html", {"message": f"Failed to monitor contract status: {e}"})
 
         except Exception as e:
-            print(f"Failed to buy or monitor contract: {e}")
-            return render(request, "index.html", {"message": f"Failed to buy or monitor contract: {e}"})
+            print(f"Failed to purchase contract: {e}")
+            return render(request, "index.html", {"message": f"Failed to purchase contract: {e}"})
 
     try:
         ws.close()

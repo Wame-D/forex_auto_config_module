@@ -1,6 +1,6 @@
 from django.urls import path
-from . import views
+from . import butFx
 
 urlpatterns = [
-    path('buy/', views.main, name='main'),
+    path('buy/', butFx.fxBuy, name='fxBuy'),
 ]
