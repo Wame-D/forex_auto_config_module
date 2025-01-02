@@ -10,7 +10,6 @@ load_dotenv()
 PRIVATE_KEY = os.getenv('PRIVATE_KEY_CONTENT')
 key_id = "3dfea0d265190fe0"  # Key ID from the Preset UI
 
-# @login_required
 def get_guest_token(request):
     """
     Generates a guest token to be used by the Preset SDK.
@@ -18,8 +17,8 @@ def get_guest_token(request):
 
     # Payload to encode
     payload = {
-        "user": {  # User information. Make sure to use a unique `username` value per user
-            "username": "Daniel wamer",
+        "user": { 
+            "username": "Daniel Wame",
             "first_name": "Daniel",
             "last_name": "Wame"
         },
@@ -27,7 +26,6 @@ def get_guest_token(request):
             {"type": "dashboard", "id": "afe0ee9c-4bda-4694-8877-eca384df8ffb"}
         ],
         "rls_rules": [  # RLS rules that should be applied
-            {"clause": "username = 'Daniel wame'"},  # This rule applies to all datasets
             {"dataset": 16, "clause": "environment = 'production'"},
             {"dataset": 42, "clause": "state = 'published'"}
         ],
@@ -44,4 +42,4 @@ def get_guest_token(request):
     )
 
     # Return the token as a JSON response
-    return JsonResponse({"token": encoded_jwt})
+    return JsonResponse({"guest_token": encoded_jwt})
