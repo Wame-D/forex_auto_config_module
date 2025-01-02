@@ -38,7 +38,7 @@ def get_guest_token(request):
         payload,
         PRIVATE_KEY,
         algorithm="RS256",
-        headers={"kid": key_id}
+        headers={"kid": "3dfea0d265190fe0"}
     )
 
     # Return the token as a JSON response
