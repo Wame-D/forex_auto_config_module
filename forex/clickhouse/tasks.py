@@ -10,7 +10,7 @@ async def fetch_and_store_candles():
     Starts at the current time and continues fetching a new candle every minute.
     """
     deriv_app_id = 65102
-    symbol = "CRASH300N"
+    symbol = "frxEURUSD"
     granularity = 60  # Candle timeframe in seconds
     table_name = "candles"  # ClickHouse table
 
