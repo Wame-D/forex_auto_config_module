@@ -7,6 +7,21 @@ All notable changes to this project will be documented in this file.
 
 ---
 
+## **[1.1.1] - 2025-01-04**
+
+### **Removed**
+- Removed **Swagger UI** integration due to project restructuring.
+
+### **Added**
+- Introduced **Dual Timeframe Moving Average & ATR Strategy** and **Malaysian Forex Strategy** for enhanced forex analysis. Users can now choose either strategy or use both for optimized trading.
+  
+### **Changed**
+- Refined the analysis module to allow the user to select a strategy and run the analysis based on the selected strategy.
+- Improved the automated analysis functionality: if no `start_time` is provided, the analysis will default to the last 24 hours of data.
+- Updated task scheduling for periodic forex data analysis, now running every 24 hours automatically.
+
+---
+
 ## **[1.1.0] - 2024-12-29**
 
 ### **Added**
