@@ -1,6 +1,5 @@
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
-# from clickhouse_connect import Client
 import json
 from forex.clickhouse.connection import get_clickhouse_client
 import pandas as pd
@@ -35,7 +34,6 @@ def save_token_and_strategy(request):
 
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
-
 @csrf_exempt
 def update_trading_status(request):
     if request.method == 'POST':
@@ -68,7 +66,6 @@ def update_trading_status(request):
 
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
-
 @csrf_exempt
 def get_start_time(request):
     if request.method == 'POST':
@@ -82,7 +79,7 @@ def get_start_time(request):
 
             # Fetch the start_time from the database
             result = client.query(f"""
-                SELECT started_at
+                SELECT started_at, trading
                 FROM userdetails 
                 WHERE token = '{token}'
             """)
@@ -90,8 +87,39 @@ def get_start_time(request):
             if result:
                 data = result.result_set[0]
                 timestamp = data[0]
+                trading = data[1]
                 formatted_timestamp = timestamp.isoformat()
-                return JsonResponse({"start_time": formatted_timestamp}, status=200)
+                return JsonResponse({"start_time": formatted_timestamp, 'trading':trading}, status=200)
+            else:
+                return JsonResponse({"error": "Token not found"}, status=404)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid HTTP method"}, status=405)
+
+@csrf_exempt
+def get_strategy(request):
+    if request.method == 'POST':
+        try:
+            # Parse JSON data from the request
+            data = json.loads(request.body)
+            token = data.get('token')
+
+            if not token:
+                return JsonResponse({"error": "Token is required"}, status=400)
+
+            # Fetch the strategy from the database
+            result = client.query(f"""
+                SELECT strategy
+                FROM userdetails 
+                WHERE token = '{token}'
+            """)
+            
+            if result:
+                data = result.result_set[0]
+                strategy= data[0]
+                return JsonResponse({"strategy": strategy}, status=200)
             else:
                 return JsonResponse({"error": "Token not found"}, status=404)
 
