@@ -50,9 +50,13 @@ from django.contrib import admin
 from django.urls import path
 from authorise_deriv.views import authorize_user
 from apache_superset.views import get_guest_token
+from bot_settings.views import save_token_and_strategy
+from bot_settings.views import update_trading_status
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('authorize/', authorize_user, name='authorize_user'),
     path('generate-guest-token/', get_guest_token, name='generate_guest_token'),
+    path('save-strategy/',save_token_and_strategy, name='save_token_and_strategy' ),
+    path('update-trading/', update_trading_status, name='update_trading_status'),
 ]
