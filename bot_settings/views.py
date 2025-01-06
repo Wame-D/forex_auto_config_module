@@ -2,7 +2,6 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
 from forex.clickhouse.connection import get_clickhouse_client
-import pandas as pd
 
 # Initialize ClickHouse client
 client = get_clickhouse_client()
