@@ -14,7 +14,7 @@ All notable changes to this project will be documented in this file.
 
 ### **Added**
 - Introduced **Dual Timeframe Moving Average & ATR Strategy** and **Malaysian Forex Strategy** for enhanced forex analysis. Users can now choose either strategy or use both for optimized trading.
-  
+  f
 ### **Changed**
 - Refined the analysis module to allow the user to select a strategy and run the analysis based on the selected strategy.
 - Improved the automated analysis functionality: if no `start_time` is provided, the analysis will default to the last 24 hours of data.
