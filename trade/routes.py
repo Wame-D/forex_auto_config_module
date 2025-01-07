@@ -2,6 +2,6 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('multiplier/', views.fxTradeMultiplier, name='fxTradeMultiplier'),
+    path('multiplier/', views.executeTrade, name='executeTrade'),
     path('sell/', views.fxCloseMultiplierTrade, name='fxCloseMultiplierTrade'),
 ]

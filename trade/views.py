@@ -1,3 +1,4 @@
+from django.http import JsonResponse
 from django.shortcuts import render
 import websocket
 import json
@@ -11,55 +12,84 @@ def send_request(ws, request):
         print(f"Error in response: {response_data['error']}")
     return response_data
 
-def fxTradeMultiplier (request):
+
+# Testing FUNCTION
+def executeTrade(request):
+    # Define the proposal details
+    proposal_details = {
+        "url": "wss://ws.binaryws.com/websockets/v3?app_id=65102",
+        "token": "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy",  # Replace actual token, if you have implemented.
+        "symbol": "cryETHUSD",
+        "amount": 10,  # Stake amount
+        "multiplier": 30,  # Multiplier value
+        "take_profit": 7.90,  # Take profit limit
+        "stop_loss": 8.32   # Stop loss limit
+    }
+
+    # Call the fxTradeMultiplier function with the proposal details
+    response = fxTradeMultiplier(
+        url=proposal_details["url"],
+        token=proposal_details["token"],
+        symbol=proposal_details["symbol"],
+        amount=proposal_details["amount"],
+        multiplier=proposal_details["multiplier"],
+        take_profit=proposal_details["take_profit"],
+        stop_loss=proposal_details["stop_loss"]
+    )
+    
+    # Print or handle the response
+    print(response)
+    return JsonResponse(response)
+
+
+def fxTradeMultiplier(url, token, symbol, amount, multiplier, take_profit, stop_loss):
+    # Establish WebSocket connection
     try:
-        url = "wss://ws.binaryws.com/websockets/v3?app_id=65102"
         ws = websocket.create_connection(url)
         print("WebSocket connection established.")
     except Exception as e:
         print(f"Failed to establish WebSocket connection: {e}")
-        return render(request, "index.html", {"message": f"Authorization failed: {e}"})
+        return {"message": f"Connection failed: {e}"}
 
-    token = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"  # Replace with your API token
+    # Authorize with the token
     authorize_request = {"authorize": token}
     try:
         auth_response = send_request(ws, authorize_request)
         if auth_response.get("error"):
-            print("Authorization failed:", auth_response["error"])
-            return render(request, "index.html", {"message": f"Authorization failed: {auth_response['error']}"} )
-        print("Authorization successful")
+            return {"message": f"Authorization failed: {auth_response['error']['message']}"}
+        print("Authorization successful.")
     except Exception as e:
-        print(f"Authorization request failed: {e}")
-        return render(request, "index.html", {"message": f"Authorization request failed: {e}"})
+        return {"message": f"Authorization failed: {e}"}
 
+    # Request active symbols
     active_symbols_request = {"active_symbols": "full"}
     try:
-        active_symbols_response = send_request(ws, active_symbols_request)
-        symbols = active_symbols_response.get("active_symbols", [])
+        symbols_response = send_request(ws, active_symbols_request)
+        symbols = symbols_response.get("active_symbols", [])
+        print("Active symbols fetched.")
     except Exception as e:
-        print(f"Failed to fetch available instruments: {e}")
-        return render(request, "index.html", {"message": f"Failed to fetch instruments: {e}"})
+        return {"message": f"Failed to fetch symbols: {e}"}
 
-    symbol = "frxAUDUSD"
+    # Request contract details for the symbol
     contracts_for_request = {"contracts_for": symbol}
     try:
-        contracts_for_response = send_request(ws, contracts_for_request)
-        contracts = contracts_for_response.get("contracts_for", {}).get("available", [])
+        contracts_response = send_request(ws, contracts_for_request)
+        contracts = contracts_response.get("contracts_for", {}).get("available", [])
     except Exception as e:
-        print(f"Failed to fetch contracts for {symbol}: {e}")
-        return render(request, "index.html", {"message": f"Failed to fetch contracts: {e}"})
+        return {"message": f"Failed to fetch contracts: {e}"}
 
+    # Send proposal request
     proposal_request = {
         "proposal": 1,
         "basis": "stake",
         "contract_type": "MULTUP",
         "currency": "USD",
         "symbol": symbol,
-        "amount": 10,
-        "multiplier": 30,
+        "amount": amount,
+        "multiplier": multiplier,
         "limit_order": {
-            "take_profit": 7.90,
-            "stop_loss": 8.32
+            "take_profit": take_profit,
+            "stop_loss": stop_loss,
         }
     }
 
@@ -67,22 +97,20 @@ def fxTradeMultiplier (request):
         proposal_response = send_request(ws, proposal_request)
         proposal_id = proposal_response.get("proposal", {}).get("id")
         if not proposal_id:
-            print("No proposal ID received.")
-            return render(request, "index.html", {"message": "Failed to receive proposal ID."})
+            return {"message": "Failed to receive proposal ID."}
         print("Proposal received:", proposal_response)
     except Exception as e:
-        print(f"Failed to request proposal: {e}")
-        return render(request, "index.html", {"message": f"Failed to request proposal: {e}"})
+        return {"message": f"Failed to request proposal: {e}"}
 
+    # Execute buy request if proposal ID exists
     if proposal_id:
-        buy_request = {"buy": proposal_id, "price": 10}
+        buy_request = {"buy": proposal_id, "price": amount}
         try:
             buy_response = send_request(ws, buy_request)
             print("Buy response:", buy_response)
             contract_id = buy_response.get("buy", {}).get("contract_id")
             if not contract_id:
-                print("Contract purchase failed: No contract ID returned.")
-                return render(request, "index.html", {"message": "Contract purchase failed."})
+                return {"message": "Contract purchase failed."}
             print("Contract purchased:", contract_id)
 
             # Monitor contract status
@@ -92,7 +120,6 @@ def fxTradeMultiplier (request):
                     open_contract_response = send_request(ws, open_contract_request)
                     contract_details = open_contract_response.get("proposal_open_contract", {})
                     status = contract_details.get("status")
-                    # print("Contract details:", contract_details)
 
                     if status == "open":
                         print("Contract is Open")
@@ -102,24 +129,20 @@ def fxTradeMultiplier (request):
                         print("Contract is closed. Exiting monitoring loop.")
                         break
 
-                    # custom logic for handling contract updates here.
-
             except Exception as e:
-                print(f"Failed to monitor contract status continuously: {e}")
-                return render(request, "index.html", {"message": f"Failed to monitor contract status: {e}"})
+                return {"message": f"Failed to monitor contract status: {e}"}
 
         except Exception as e:
-            print(f"Failed to purchase contract: {e}")
-            return render(request, "index.html", {"message": f"Failed to purchase contract: {e}"})
+            return {"message": f"Failed to purchase contract: {e}"}
 
+    # Close the WebSocket connection
     try:
         ws.close()
         print("WebSocket connection closed.")
     except Exception as e:
-        print(f"Error closing WebSocket connection: {e}")
-        return render(request, "index.html", {"message": f"Error closing WebSocket: {e}"})
+        return {"message": f"Error closing WebSocket: {e}"}
 
-    return render(request, "index.html", {"message": "Trade completed successfully!"})
+    return {"message": "Trade completed successfully!"}
 
 
 def fxCloseMultiplierTrade(request):
@@ -144,11 +167,11 @@ def fxCloseMultiplierTrade(request):
         print(f"Authorization request failed: {e}")
         return render(request, "index.html", {"message": f"Authorization request failed: {e}"})
         
-    sell_request = {"sell": 267922541148, "price": 40}
+    sell_request = {"sell": 267924162408, "price": 40}
     try:
         sell_response = send_request(ws, sell_request)
         print("Sell response:", sell_response)
-        if sell_response.get("sell", {}).get("status") == "sold":
+        if sell_response.get("sell", {}).get("msg_type") == "sell":
             print("Contract successfully sold.")
         else:
             print("Failed to sell the contract:", sell_response)
