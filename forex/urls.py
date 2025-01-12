@@ -56,6 +56,7 @@ from bot_settings.views import get_start_time
 from bot_settings.views import get_strategy
 from bot_settings.views import save_symbols
 from bot_settings.views import get_symbol
+from django.urls import include, path
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -67,4 +68,5 @@ urlpatterns = [
     path('choosen-strategy/', get_strategy, name='get_strategy' ),
     path('save_symbols/', save_symbols, name='save_symbols' ),
     path('get_symbols/', get_symbol, name='get_symbol' ),
+     path('trade/', include('trade.routes'))
 ]

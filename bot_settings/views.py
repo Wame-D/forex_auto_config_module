@@ -19,12 +19,28 @@ def save_token_and_strategy(request):
             # Validate input
             if not token or not strategy:
                 return JsonResponse({"error": "Token and strategy are required"}, status=400)
-
-            # Save data to ClickHouse
-            client.command(f"""
-                INSERT INTO userdetails (token, strategy, trading, created_at) 
-                VALUES ('{token}', '{strategy}', '{trading}', NOW())
+           
+            # checking if the user already have a strategy
+            result = client.query(f"""
+                SELECT COUNT(*)
+                FROM userdetails 
+                WHERE token = '{token}'
             """)
+            row_data = result.result_set[0]
+            count = row_data[0]
+
+            if count > 0:
+                # change only the strategy
+                client.command(f"""
+                    ALTER TABLE userdetails UPDATE strategy = '{strategy}'
+                    WHERE token = '{token}'
+                """)
+            else:
+                # Save data to ClickHouse
+                client.command(f"""
+                    INSERT INTO userdetails (token, strategy, trading, created_at) 
+                    VALUES ('{token}', '{strategy}', '{trading}', NOW())
+                """)
 
             return JsonResponse({"message": "Data saved successfully"}, status=201)
 
