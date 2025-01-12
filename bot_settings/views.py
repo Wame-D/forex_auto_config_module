@@ -173,12 +173,9 @@ def get_symbol(request):
                 FROM symbols
                 WHERE token = '{token}'
             """)
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-            print(data = result.result_set[0])
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
             if result:
-                data = result.result_set[0]
-                strategy= data[0]
+                symbol = result.result_set
+                # strategy= data[0]
                 return JsonResponse({"symbol": symbol}, status=200)
             else:
                 return JsonResponse({"error": "Token not found"}, status=404)

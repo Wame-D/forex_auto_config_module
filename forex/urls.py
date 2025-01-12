@@ -66,5 +66,5 @@ urlpatterns = [
     path('start-time/', get_start_time, name='get_start_time'),
     path('choosen-strategy/', get_strategy, name='get_strategy' ),
     path('save_symbols/', save_symbols, name='save_symbols' ),
-    path('get_symbol/', get_symbol, name='get_symbol' ),
+    path('get_symbols/', get_symbol, name='get_symbol' ),
 ]
