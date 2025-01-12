@@ -26,3 +26,4 @@ def apply_trailing_stop(entry, stop_loss, trade_type, atr):
         return max(stop_loss, entry + atr_multiplier)
     elif trade_type == "SELL":
         return min(stop_loss, entry - atr_multiplier)
+    return stop_loss  # Default if no trailing stop applied

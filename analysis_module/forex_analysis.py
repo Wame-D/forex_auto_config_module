@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from .strategy import aggregate_candles, generate_signals
 from .risk_management import calculate_position_size, calculate_trade_levels, apply_trailing_stop
+from .forex_data import generate_predefined_data
 
 PIP_VALUE = 0.0001
 ACCOUNT_BALANCE = 10000
@@ -10,7 +11,11 @@ ATR_PERIOD = 14
 TIMEFRAMES = {"4H": 240, "15M": 15}
 
 async def fetch_forex_data():
-   forex_data_predefined = generate_predefined_data()
+    """Fetch forex data using forex_data from the forex_data module."""
+    data = generate_predefined_data()
+    if not data:
+        print("[ERROR] No data fetched.")
+    return data
 
 def aggregate_candles(candles, interval_minutes):
     """Aggregate candles into specified time intervals."""
@@ -22,7 +27,7 @@ def aggregate_candles(candles, interval_minutes):
     for candle in candles:
         current_time = datetime.fromisoformat(candle["timestamp"])
         if start_time is None or current_time >= start_time + interval_delta:
-            if start_time is not None:  # Save the previous interval's candle
+            if start_time is not None:
                 aggregated.append({
                     "timestamp": start_time.isoformat(),
                     "open": open_price,
@@ -53,38 +58,11 @@ def aggregate_candles(candles, interval_minutes):
         })
     
     if not aggregated:
-        print("[DEBUG] No candles aggregated.")
-    else:
-        print(f"[DEBUG] Aggregated candles into {len(aggregated)} intervals.")
-        
+        print("[ERROR] No candles aggregated.")
     return aggregated
 
-def find_key_patterns(data):
-    """Find candlestick patterns such as support and resistance."""
-    key_patterns = []
-    for i in range(1, len(data)):
-        current = data[i]
-        previous = data[i - 1]
-        if previous['close'] > previous['open'] and current['close'] < current['open']:
-            print(f"[DEBUG] Found support pattern at {current['timestamp']}")
-            key_patterns.append({"pattern": "support", "timestamp": current["timestamp"], "candle": current})
-        elif previous['close'] < previous['open'] and current['close'] > current['open']:
-            print(f"[DEBUG] Found resistance pattern at {current['timestamp']}")
-            key_patterns.append({"pattern": "resistance", "timestamp": current["timestamp"], "candle": current})
-    
-    if not key_patterns:
-        print("[DEBUG] No key patterns found.")
-    
-    return key_patterns
-
-async def fetch_and_analyze_forex_data(start_time="2025-01-01 00:00:00"):
-    """Fetch forex data and analyze it based on the Malaysian Forex Strategy."""
-    table_name = "candles"
-    end_time = datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S")
-    
-    # Fetch data from the ClickHouse database
+async def fetch_and_analyze_forex_data():
     raw_data = await fetch_forex_data()
-    
     if not raw_data:
         print("[ERROR] No data available for the given time range.")
         return []
@@ -93,12 +71,17 @@ async def fetch_and_analyze_forex_data(start_time="2025-01-01 00:00:00"):
     candles_4h = aggregate_candles(raw_data, TIMEFRAMES["4H"])
     candles_15m = aggregate_candles(raw_data, TIMEFRAMES["15M"])
 
+    # Debugging logs
+    print(f"[DEBUG] Aggregated 4H candles: {len(candles_4h)}")
+    print(f"[DEBUG] Aggregated 15M candles: {len(candles_15m)}")
+
+    # Ensure that we have enough data for further analysis
     if not candles_4h or not candles_15m:
         print("[ERROR] Insufficient data after aggregation.")
         return []
 
-    # Generate trading signals based on selected strategy
-    signals = generate_signals(candles_4h, candles_15m, MOVING_AVERAGES, ATR_PERIOD, strategy_choice="malaysian")
+    # Generate trading signals based on moving averages
+    signals = generate_signals(candles_15m, MOVING_AVERAGES)
     
     if not signals:
         print("[ERROR] No valid signals generated.")
@@ -111,7 +94,6 @@ async def fetch_and_analyze_forex_data(start_time="2025-01-01 00:00:00"):
         position_size = calculate_position_size(ACCOUNT_BALANCE, RISK_PERCENTAGE, signal["entry"], stop_loss)
         trailing_stop = apply_trailing_stop(signal["entry"], stop_loss, signal["type"], signal["atr"])
 
-        # Add the processed signal to the output_data list
         output_data.append({
             "Signal": signal["type"],
             "Entry": signal["entry"],
