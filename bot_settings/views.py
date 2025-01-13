@@ -240,8 +240,14 @@ def delete_symbol(request):
 
 @csrf_exempt
 def get_candles(request):
+  
     if request.method == 'GET':  # Use GET for retrieving data
+      
         try:
+
+            #table_name = request.GET.get('table', 'candles')
+            # Validate the table name to prevent SQL injection
+            #valid_tables = ['candles', 'v75_candles', 'us30_candles']
             # Execute the query to fetch candle data
             result = client.query("""
                 SELECT * 

@@ -9,7 +9,7 @@ from bot_settings.views import get_strategy
 from bot_settings.views import save_symbols
 from bot_settings.views import get_symbol
 from django.urls import include, path
-from bot_settings.views import delete_symbol
+from bot_settings.views import delete_symbol,get_candles
 from analysis_module.view import forex_analysis
 
 urlpatterns = [
@@ -24,7 +24,7 @@ urlpatterns = [
     path('get_symbols/', get_symbol, name='get_symbol' ),
     path('delete_symbols/', delete_symbol, name='delete_symbol' ),
     path('trade/', include('trade.routes')),    
-    #path('api/get_candles/', get_candles, name='get_candles'),
+    path('api/get_candles/', get_candles, name='get_candles'),
     path('api/forex-analysis/', forex_analysis, name='forex_analysis'),  # Add the route for the analysis
 
 
