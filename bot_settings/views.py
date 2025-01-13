@@ -236,3 +236,36 @@ def delete_symbol(request):
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
+  
+
+@csrf_exempt
+def get_candles(request):
+    if request.method == 'GET':  # Use GET for retrieving data
+        try:
+            # Execute the query to fetch candle data
+            result = client.query("""
+                SELECT * 
+                FROM candles 
+                WHERE timestamp >= now() - INTERVAL 24 HOUR 
+                ORDER BY timestamp
+            """)
+
+            # Parse the result into a structured response
+            candles = [
+                {
+                    "timestamp": row[result.column_names.index("timestamp")].isoformat(),
+                    "open": round(row[result.column_names.index("open")], 4),
+                    "high": round(row[result.column_names.index("high")], 4),
+                    "low": round(row[result.column_names.index("low")], 4),
+                    "close": round(row[result.column_names.index("close")], 4),
+                }
+                for row in result.result_set
+            ]
+
+            #return JsonResponse(candles, safe=False, status=200)
+            return candles
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid HTTP method"}, status=405)
