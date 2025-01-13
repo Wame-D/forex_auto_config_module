@@ -16,6 +16,5 @@ def get_clickhouse_client():
             secure=True
         )
         print("Result:", _clickhouse_client.query("SELECT 1").result_set[0][0])
-        print("Result:", _clickhouse_client.query("SELECT 1").result_set[0][0])
         print("Successfully connected to ClickHouse!")
     return _clickhouse_client

@@ -6,6 +6,7 @@ from forex.clickhouse.connection import get_clickhouse_client
 # Initialize ClickHouse client
 client = get_clickhouse_client()
 
+# saving user tocken to the database and strategy
 @csrf_exempt
 def save_token_and_strategy(request):
     if request.method == 'POST':
@@ -49,6 +50,40 @@ def save_token_and_strategy(request):
 
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
+# Saving symbols 
+@csrf_exempt
+def save_symbols(request):
+    if request.method == 'POST':
+        try:
+            # Parse JSON data from the request
+            data = json.loads(request.body)
+            token = data.get('token')
+            symbols = data.get('symbols')  # Expecting an array of symbols
+
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>")
+            print(symbols)
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+            # Validate input
+            if not token or not symbols:
+                return JsonResponse({"error": "Token and symbols are required"}, status=400)
+            if not isinstance(symbols, list):
+                return JsonResponse({"error": "Symbols must be a list"}, status=400)
+
+            # Prepare and execute bulk insertion
+            for symbol in symbols:
+                client.command(f"""
+                    INSERT INTO symbols (token, symbol, created_at) 
+                    VALUES ('{token}', '{symbol}', NOW())
+                 """)
+
+            return JsonResponse({"message": "Data saved successfully"}, status=201)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid HTTP method"}, status=405)
+
+# Updating the trading status of the user
 @csrf_exempt
 def update_trading_status(request):
     if request.method == 'POST':
@@ -81,6 +116,7 @@ def update_trading_status(request):
 
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
+# Getting the time the user allowed the bot to start trading
 @csrf_exempt
 def get_start_time(request):
     if request.method == 'POST':
@@ -113,6 +149,7 @@ def get_start_time(request):
 
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
+# Getting the strategy that the user selected
 @csrf_exempt
 def get_strategy(request):
     if request.method == 'POST':
@@ -135,6 +172,63 @@ def get_strategy(request):
                 data = result.result_set[0]
                 strategy= data[0]
                 return JsonResponse({"strategy": strategy}, status=200)
+            else:
+                return JsonResponse({"error": "Token not found"}, status=404)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid HTTP method"}, status=405)
+
+# Getting symbols that the user selected
+@csrf_exempt
+def get_symbol(request):
+    if request.method == 'POST':
+        try:
+            # Parse JSON data from the request
+            data = json.loads(request.body)
+            token = data.get('token')
+
+            if not token:
+                return JsonResponse({"error": "Token is required"}, status=400)
+
+            # Fetch the strategy from the database
+            result = client.query(f"""
+                SELECT symbol
+                FROM symbols
+                WHERE token = '{token}'
+            """)
+            if result:
+                symbol = result.result_set
+                return JsonResponse({"symbol": symbol}, status=200)
+            else:
+                return JsonResponse({"error": "Token not found"}, status=404)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid HTTP method"}, status=405)
+
+# dELETING SYMBOLS FROM THE DATABASE from the database
+@csrf_exempt
+def delete_symbol(request):
+    if request.method == 'POST':
+        try:
+            # Parse JSON data from the request
+            data = json.loads(request.body)
+            token = data.get('token')
+            symbol = data.get('index')
+
+            if not token:
+                return JsonResponse({"error": "Token is required"}, status=400)
+
+            # dELETING SYMBOLS FROM THE DATABASE from the database
+            result = client.query(f"""
+                DELETE FROM symbols WHERE symbol = '{symbol}' AND token = '{token}'
+            """)
+            if result:
+                symbol = result.result_set
+                return JsonResponse({"symbol": symbol}, status=200)
             else:
                 return JsonResponse({"error": "Token not found"}, status=404)
 
