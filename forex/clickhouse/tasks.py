@@ -1,8 +1,10 @@
 from deriv_api import DerivAPI
-import asyncio
+# import asyncio
 from .connection import get_clickhouse_client
 from datetime import datetime, timedelta
 import pytz  # Import pytz for timezone handling
+import asyncio
+import threading
 
 # fetching Uero/usd
 async def fetch_and_store_candles():
@@ -212,6 +214,7 @@ async def fetch_gold_candles():
     except Exception as e:
         print(f"Error in fetch_and_store_candles: {e}")
 
+# storing candles
 async def store_candle_in_clickhouse(candle, table_name, cat_timezone):
     """
     Store a single candle in ClickHouse and display time in CAT.
@@ -248,16 +251,31 @@ async def store_candle_in_clickhouse(candle, table_name, cat_timezone):
             VALUES ('{timestamp_utc}', {open_price}, {high_price}, {low_price}, {close_price})
         """
         client.command(insert_query)
-        print(f"[{timestamp_cat}] Candle stored: Open: {open_price}, Close: {close_price}")
+        print(f"[{timestamp_cat}] Candle stored: Open: {open_price}, Close: {close_price} in {table_name}")
     except Exception as e:
         print(f"Error storing candle: {e}")
 
+# startimg candle fetching automatically
 def start_candle_fetcher():
     """
-    Start the candle fetching process.
+    Start the candle fetching process concurrently in a background thread.
     """
-    asyncio.run(fetch_and_store_candles())
-    asyncio.run(fetch_us30_candles())
-    asyncio.run(fetch_gold_candles())
-    asyncio.run(fetch_v75())
-    
+    def thread_function():
+        # Create a new event loop for the thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        
+        # Run the async tasks
+        loop.run_until_complete(
+            asyncio.gather(
+                fetch_and_store_candles(),
+                fetch_us30_candles(),
+                fetch_gold_candles(),
+                fetch_v75()
+            )
+        )
+        
+    # Start the thread to run the async tasks
+    thread = threading.Thread(target=thread_function)
+    thread.start()
+

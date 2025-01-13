@@ -60,6 +60,9 @@ def save_symbols(request):
             token = data.get('token')
             symbols = data.get('symbols')  # Expecting an array of symbols
 
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>")
+            print(symbols)
+            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
             # Validate input
             if not token or not symbols:
                 return JsonResponse({"error": "Token and symbols are required"}, status=400)
@@ -197,7 +200,6 @@ def get_symbol(request):
             """)
             if result:
                 symbol = result.result_set
-                # strategy= data[0]
                 return JsonResponse({"symbol": symbol}, status=200)
             else:
                 return JsonResponse({"error": "Token not found"}, status=404)
