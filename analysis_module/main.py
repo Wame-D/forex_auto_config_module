@@ -5,6 +5,7 @@ from .strategy_analysis import analyze_malaysian_strategy
 from datetime import datetime, timedelta
 import pytz 
 import asyncio
+from forex.clickhouse.connection import get_clickhouse_client
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -53,11 +54,10 @@ async def main():
         else:
             logging.info("No trading signals generated.")
 
-        # return signals
-        print("the method called succseesfully")
-        print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
-        print(signals)
-        print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
+        if len(signals) > 0:
+            save_signals_to_clickhouse(signals)
+        else:
+            print("No signal generated")
     
         # Calculate sleep duration
         next_minute = aligned_time + timedelta(minutes=1)
@@ -79,3 +79,47 @@ async def main():
 # invocation
 if __name__ == "__main__":
     main()
+
+# sTORING SIGNALS TO CLICKHOUSE
+def save_signals_to_clickhouse(signals):
+    """
+    Save trading signals to a ClickHouse database.
+
+    Args:
+        signals (list of dict): A list of signals containing details like Signal, Entry, SL, TP, and Lot Size.
+    """
+    try:
+        table_name = "trading_signals"
+
+        # Define the CAT timezone and get the current timestamp
+        cat_timezone = pytz.timezone("Africa/Harare")
+        timestamp_cat = datetime.now(tz=cat_timezone)
+
+        # Connect to ClickHouse and create the table if it doesn't exist
+        client = get_clickhouse_client()
+        create_table_query = f"""
+            CREATE TABLE IF NOT EXISTS {table_name} (
+                timestamp DateTime,
+                Signal String,
+                Entry Float64,
+                SL Float64,
+                TP Float64,
+                Lot_Size Float64
+            ) ENGINE = MergeTree()
+            ORDER BY timestamp
+        """
+        client.command(create_table_query)
+      
+        print("___________________________STARTED STORING SIGNALS________________________________________")
+        for s in signals:
+            client.command(f"""
+                INSERT INTO trading_signals (timestamp, Signal, Entry, SL, TP, Lot_Size) 
+                VALUES (NOW(), '{s['Signal']}', {s['Entry']}, {s['SL']}, {s['TP']}, {s['Lot Size']})
+                """)
+            
+            print(f"[{timestamp_cat}] Stored: {s['Signal']}, {s['Entry']}, {s['SL']}, {s['TP']}, {s['Lot Size']}")
+
+        print('___________________________ SIGNALS STORED________________________________________')
+
+    except Exception as e:
+        print(f"Error storing signals: {e}")

@@ -60,15 +60,10 @@ def fetch_forex_data() -> Optional[List[Dict[str, Any]]]:
         logger.exception(f"Error fetching forex data: {e}")
         return None
     
-    
+# fETCHING eURO/USD candles  
 def get_candles():
-  
-    # if request.method == 'GET':  # Use GET for retrieving data
-      
     try:
 
-        #table_name = request.GET.get('table', 'candles')
-        # Validate the table name to prevent SQL injection
         #valid_tables = ['candles', 'v75_candles', 'us30_candles']
         # Execute the query to fetch candle data
         result = client.query("""
@@ -90,9 +85,8 @@ def get_candles():
             for row in result.result_set
         ]
 
-        #return JsonResponse(candles, safe=False, status=200)
         return candles
 
     except Exception as e:
-        return JsonResponse({"error": str(e)}, status=500)
+        return ({"error": str(e)})
 
