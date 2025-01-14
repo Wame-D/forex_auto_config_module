@@ -60,9 +60,6 @@ def save_symbols(request):
             token = data.get('token')
             symbols = data.get('symbols')  # Expecting an array of symbols
 
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>")
-            print(symbols)
-            print(">>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>")
             # Validate input
             if not token or not symbols:
                 return JsonResponse({"error": "Token and symbols are required"}, status=400)
@@ -231,45 +228,6 @@ def delete_symbol(request):
                 return JsonResponse({"symbol": symbol}, status=200)
             else:
                 return JsonResponse({"error": "Token not found"}, status=404)
-
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-
-    return JsonResponse({"error": "Invalid HTTP method"}, status=405)
-  
-
-@csrf_exempt
-def get_candles(request):
-  
-    if request.method == 'GET':  # Use GET for retrieving data
-      
-        try:
-
-            #table_name = request.GET.get('table', 'candles')
-            # Validate the table name to prevent SQL injection
-            #valid_tables = ['candles', 'v75_candles', 'us30_candles']
-            # Execute the query to fetch candle data
-            result = client.query("""
-                SELECT * 
-                FROM candles 
-                WHERE timestamp >= now() - INTERVAL 24 HOUR 
-                ORDER BY timestamp
-            """)
-
-            # Parse the result into a structured response
-            candles = [
-                {
-                    "timestamp": row[result.column_names.index("timestamp")].isoformat(),
-                    "open": round(row[result.column_names.index("open")], 4),
-                    "high": round(row[result.column_names.index("high")], 4),
-                    "low": round(row[result.column_names.index("low")], 4),
-                    "close": round(row[result.column_names.index("close")], 4),
-                }
-                for row in result.result_set
-            ]
-
-            #return JsonResponse(candles, safe=False, status=200)
-            return candles
 
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)

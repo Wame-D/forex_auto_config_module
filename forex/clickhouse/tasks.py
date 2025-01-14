@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import pytz  # Import pytz for timezone handling
 import asyncio
 import threading
+from analysis_module.main import main 
 
 # fetching Uero/usd
 async def fetch_and_store_candles():
@@ -271,7 +272,8 @@ def start_candle_fetcher():
                 fetch_and_store_candles(),
                 fetch_us30_candles(),
                 fetch_gold_candles(),
-                fetch_v75()
+                fetch_v75(),
+                main()
             )
         )
         

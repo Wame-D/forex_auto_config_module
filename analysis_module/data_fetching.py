@@ -1,7 +1,11 @@
 import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime
-from bot_settings.views import get_candles
+from forex.clickhouse.connection import get_clickhouse_client
+
+# Initialize ClickHouse client
+client = get_clickhouse_client()
+# from bot_settings.views import get_candles
 
 # Set up logger
 logger = logging.getLogger(__name__)
@@ -35,13 +39,13 @@ def parse_forex_data(candles: List[Dict[str, Any]]) -> Optional[List[Dict[str, A
     return parsed_candles
 
 
-def fetch_forex_data(request) -> Optional[List[Dict[str, Any]]]:
+def fetch_forex_data() -> Optional[List[Dict[str, Any]]]:
     """
     Fetches real-time forex data (minute-level candles) and returns parsed data as a list of dictionaries.
     """
     logger.info("Fetching forex data...")
     try:
-        response = get_candles(request)
+        response = get_candles()
         if isinstance(response, dict) and "error" in response:
             logger.error(f"Error fetching forex data: {response['error']}")
             return None
@@ -55,3 +59,40 @@ def fetch_forex_data(request) -> Optional[List[Dict[str, Any]]]:
     except Exception as e:
         logger.exception(f"Error fetching forex data: {e}")
         return None
+    
+    
+def get_candles():
+  
+    # if request.method == 'GET':  # Use GET for retrieving data
+      
+    try:
+
+        #table_name = request.GET.get('table', 'candles')
+        # Validate the table name to prevent SQL injection
+        #valid_tables = ['candles', 'v75_candles', 'us30_candles']
+        # Execute the query to fetch candle data
+        result = client.query("""
+            SELECT * 
+            FROM candles 
+            WHERE timestamp >= now() - INTERVAL 24 HOUR 
+            ORDER BY timestamp
+        """)
+
+        # Parse the result into a structured response
+        candles = [
+            {
+                "timestamp": row[result.column_names.index("timestamp")].isoformat(),
+                "open": round(row[result.column_names.index("open")], 4),
+                "high": round(row[result.column_names.index("high")], 4),
+                "low": round(row[result.column_names.index("low")], 4),
+                "close": round(row[result.column_names.index("close")], 4),
+            }
+            for row in result.result_set
+        ]
+
+        #return JsonResponse(candles, safe=False, status=200)
+        return candles
+
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
