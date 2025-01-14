@@ -135,15 +135,17 @@ def prepare_trading(signals):
             return("strategy needed")
 
         # Fetch the strategy from the database
-        result = client.query(f"""
-            SELECT token
-            FROM userdetails 
-            WHERE strategy = '{strategy}' AND trading = true
-        """)
+        result = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"
+        # result = client.query(f"""
+        #     SELECT token
+        #     FROM userdetails 
+        #     WHERE strategy = '{strategy}' AND trading = true
+        # """)
         
         if result:
-            data = result.result_set[0]
-            token = data[0]
+            # data = result.result_set[0]
+            # token = data[0]
+            token = result
             print(token)
             
             print('___________________________ START PLACING TRADES________________________________________')
