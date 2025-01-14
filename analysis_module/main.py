@@ -6,12 +6,14 @@ from datetime import datetime, timedelta
 import pytz 
 import asyncio
 from forex.clickhouse.connection import get_clickhouse_client
+from trade.views import executeTrade
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
 
 # Define the CAT timezone
 cat_timezone = pytz.timezone("Africa/Harare")
+client = get_clickhouse_client()
 
 async def main():
     """
@@ -56,6 +58,7 @@ async def main():
 
         if len(signals) > 0:
             save_signals_to_clickhouse(signals)
+            prepare_trading(signals)
         else:
             print("No signal generated")
     
@@ -96,7 +99,6 @@ def save_signals_to_clickhouse(signals):
         timestamp_cat = datetime.now(tz=cat_timezone)
 
         # Connect to ClickHouse and create the table if it doesn't exist
-        client = get_clickhouse_client()
         create_table_query = f"""
             CREATE TABLE IF NOT EXISTS {table_name} (
                 timestamp DateTime,
@@ -123,3 +125,34 @@ def save_signals_to_clickhouse(signals):
 
     except Exception as e:
         print(f"Error storing signals: {e}")
+
+# Preparing trading 
+def prepare_trading(signals):
+    try:
+        strategy = "malysian"
+
+        if not strategy:
+            return("strategy needed")
+
+        # Fetch the strategy from the database
+        result = client.query(f"""
+            SELECT token
+            FROM userdetails 
+            WHERE strategy = '{strategy}' AND trading = true
+        """)
+        
+        if result:
+            data = result.result_set[0]
+            token = data[0]
+            print(token)
+            
+            print('___________________________ START PLACING TRADES________________________________________')
+            for s in signals:
+                executeTrade(token, s['Lot Size'], s['TP'], s['SL'] )
+
+            print('___________________________ TRADE PLACE________________________________________')  
+        else:
+            return({"error": "Token not found"})
+
+    except Exception as e:
+        return({"error": str(e)})

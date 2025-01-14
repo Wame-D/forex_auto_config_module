@@ -1,6 +1,8 @@
 from django.http import JsonResponse
 from django.shortcuts import render
 import websocket
+from websocket import create_connection
+
 import json
 
 def send_request(ws, request):
@@ -14,16 +16,16 @@ def send_request(ws, request):
 
 
 # Testing FUNCTION
-def executeTrade(request):
+def executeTrade(token, lot_size, tp, sl):
     # Define the proposal details
     proposal_details = {
         "url": "wss://ws.binaryws.com/websockets/v3?app_id=65102",
-        "token": "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy",  # Replace actual token, if you have implemented.
-        "symbol": "cryETHUSD",
-        "amount": 10,  # Stake amount
+        "token": token,  # Replace actual token, if you have implemented.
+        "symbol": "frxEURUSD",
+        "amount": lot_size,  # Stake amount
         "multiplier": 30,  # Multiplier value
-        "take_profit": 7.90,  # Take profit limit
-        "stop_loss": 8.32   # Stop loss limit
+        "take_profit": tp,  # Take profit limit
+        "stop_loss": sl   # Stop loss limit
     }
 
     # Call the fxTradeMultiplier function with the proposal details
@@ -45,7 +47,7 @@ def executeTrade(request):
 def fxTradeMultiplier(url, token, symbol, amount, multiplier, take_profit, stop_loss):
     # Establish WebSocket connection
     try:
-        ws = websocket.create_connection(url)
+        ws = create_connection(url)
         print("WebSocket connection established.")
     except Exception as e:
         print(f"Failed to establish WebSocket connection: {e}")
@@ -85,15 +87,16 @@ def fxTradeMultiplier(url, token, symbol, amount, multiplier, take_profit, stop_
         "contract_type": "MULTUP",
         "currency": "USD",
         "symbol": symbol,
-        "amount": amount,
+        "amount": 5,
         "multiplier": multiplier,
         "limit_order": {
-            "take_profit": take_profit,
-            "stop_loss": stop_loss,
+            "take_profit": take_profit * 3,
+            "stop_loss": stop_loss + 2.49,
         }
     }
 
     try:
+        print(proposal_request)
         proposal_response = send_request(ws, proposal_request)
         proposal_id = proposal_response.get("proposal", {}).get("id")
         if not proposal_id:

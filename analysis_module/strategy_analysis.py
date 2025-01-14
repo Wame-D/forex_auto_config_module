@@ -56,9 +56,9 @@ def analyze_malaysian_strategy(candles_4h: List[Dict[str, Any]], candles_15m: Li
                     position_size = calculate_risk(entry_price, stop_loss)
                     signals.append({
                         "Signal": signal_type,
-                        "Entry": round(entry_price, 5),
-                        "SL": round(stop_loss, 5),
-                        "TP": round(take_profit, 5),
+                        "Entry": round(entry_price, 2),
+                        "SL": round(stop_loss, 2),
+                        "TP": round(take_profit, 2),
                         "Lot Size": position_size,
                     })
 
