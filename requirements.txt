@@ -36,3 +36,4 @@ whitenoise==6.8.2
 zope.event==5.0
 zope.interface==7.2
 zstandard==0.23.0
+websocket-client

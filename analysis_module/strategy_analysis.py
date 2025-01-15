@@ -12,7 +12,7 @@ from .constants import ACCOUNT_BALANCE, DEFAULT_BUFFER_PIPS, EXOTIC_PAIRS
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 
-def analyze_strategy(candles: List[Dict[str, Any]]) -> Dict[str, Any]:
+def analyze_malaysian_strategy(candles: List[Dict[str, Any]]) -> Dict[str, Any]:
     """
     Analyzes market data and generates trade signals based on a strategy.
     """
