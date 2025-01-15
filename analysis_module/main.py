@@ -18,7 +18,6 @@ client = get_clickhouse_client()
 async def main():
     """
     Main function to fetch, aggregate, and analyze forex data.
-
     Args:
         request: The request object (or None during testing).
     
