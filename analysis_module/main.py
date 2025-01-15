@@ -88,7 +88,7 @@ def save_signals_to_clickhouse(signals):
     Save trading signals to a ClickHouse database.
 
     Args:
-        signals (list of dict): A list of signals containing details like Signal, Entry, SL, TP, and Lot Size.
+        signals (list of dict): A list of signals containing details like Signal, Entry, SL, TP, and Risk Amount.
     """
     try:
         table_name = "trading_signals"
@@ -105,20 +105,21 @@ def save_signals_to_clickhouse(signals):
                 Entry Float64,
                 SL Float64,
                 TP Float64,
-                Lot_Size Float64
+                Risk_Amount Float64
             ) ENGINE = MergeTree()
             ORDER BY timestamp
         """
         client.command(create_table_query)
       
         print("___________________________STARTED STORING SIGNALS________________________________________")
+        print(signals  )
         for s in signals:
             client.command(f"""
-                INSERT INTO trading_signals (timestamp, Signal, Entry, SL, TP, Lot_Size) 
-                VALUES (NOW(), '{s['Signal']}', {s['Entry']}, {s['SL']}, {s['TP']}, {s['Lot Size']})
+                INSERT INTO trading_signals (timestamp, Signal, Entry, SL, TP, Risk_Amount) 
+                VALUES (NOW(), '{s['Signal']}', {s['Entry']}, {s['SL']}, {s['TP']}, {s['Risk Amount']})
                 """)
             
-            print(f"[{timestamp_cat}] Stored: {s['Signal']}, {s['Entry']}, {s['SL']}, {s['TP']}, {s['Lot Size']}")
+            print(f"[{timestamp_cat}] Stored: {s['Signal']}, {s['Entry']}, {s['SL']}, {s['TP']}, {s['Risk Amount']}")
 
         print('___________________________ SIGNALS STORED________________________________________')
 
@@ -149,7 +150,7 @@ def prepare_trading(signals):
             
             print('___________________________ START PLACING TRADES________________________________________')
             for s in signals:
-                executeTrade(token, s['Lot Size'], s['TP'], s['SL'] )
+                executeTrade(token, s['Risk Amount'], s['TP'], s['SL'] )
 
             print('___________________________ TRADE PLACE________________________________________')  
         else:
