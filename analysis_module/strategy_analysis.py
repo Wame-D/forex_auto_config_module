@@ -1,7 +1,6 @@
 import logging
 from datetime import timedelta
 from typing import List, Dict, Any
-from .risk_management import calculate_risk
 from .constants import REWARD_TO_RISK_RATIO, PIP_VALUE
 
 # Set up logger
@@ -53,13 +52,12 @@ def analyze_malaysian_strategy(candles_4h: List[Dict[str, Any]], candles_15m: Li
                         else entry_price - REWARD_TO_RISK_RATIO * (stop_loss - entry_price)
                     )
 
-                    position_size = calculate_risk(entry_price, stop_loss)
                     signals.append({
                         "Signal": signal_type,
                         "Entry": round(entry_price, 2),
                         "SL": round(stop_loss, 2),
                         "TP": round(take_profit, 2),
-                        "Lot Size": position_size,
+                        "Lot Size": 0,
                     })
 
         logger.info(f"Generated {len(signals)} signals.")
