@@ -153,6 +153,7 @@ async def prepare_trading(signals):
             place trades if choosen symboll and strategy matches what user selected
             fetch balance and calculate  statke amount based on that
             """
+            print('___________________________ START BUYING________________________________________')
             for s in signals[0]:
                 for tokens in tokenn:
                     token = tokens[0]
@@ -177,17 +178,17 @@ async def prepare_trading(signals):
                             if risk_amount > 0:
                              
                                 if s['Signal'] == "Buy":
-                                    print('___________________________ START BUYING________________________________________')
+                                    
                                     executeTrade(token, risk_amount, s['TP'], s['SL'], symbol )
                                     print('___________________________ TRADE PLACED________________________________________') 
                                 elif s['Signal'] == "Sell":
-                                    print('___________________________ START SELLING________________________________________')
                                     # executeTrade(token, risk_amount, s['TP'], s['SL'], symbol )
-                                    print('___________________________ TRADE PLACED________________________________________') 
+                                    
                                 else:
                                     print('___________________________ UNKNOWN SIGNAL TYPE________________________________________')
                             else:
                                 print("trade failed")
+                
 
 
         else:
