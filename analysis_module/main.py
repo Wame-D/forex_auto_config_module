@@ -7,6 +7,7 @@ import pytz
 import asyncio
 from forex.clickhouse.connection import get_clickhouse_client
 from trade.views import executeTrade
+from .risk_management import calculate_risk
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -57,7 +58,7 @@ async def main():
 
         if len(signals) > 0:
             save_signals_to_clickhouse(signals)
-            prepare_trading(signals)
+            await prepare_trading(signals)
         else:
             print("No signal generated")
     
@@ -126,13 +127,20 @@ def save_signals_to_clickhouse(signals):
         print(f"Error storing signals: {e}")
 
 # Preparing trading 
-def prepare_trading(signals):
+async def prepare_trading(signals):
     try:
         strategy = "malysian"
+        local_symbol = "frxEURUSD"
 
         if not strategy:
             return("strategy needed")
 
+        # Fetch the token from the database
+        result = client.query(f"""
+            SELECT token
+            FROM userdetails 
+            WHERE strategy = '{strategy}' AND trading = true
+        """)
         # Fetch the strategy from the database
         result = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"
         # result = client.query(f"""
@@ -142,6 +150,14 @@ def prepare_trading(signals):
         # """)
         
         if result:
+            tokenn  = result.result_set
+
+            """
+            For each signal fetch tokens that  choose that strategy
+            then using that token also chek those who selected that given symbol
+            place trades if choosen symboll and strategy matches what user selected
+            fetch balance and calculate  statke amount based on that
+            """
             # data = result.result_set[0]
             # token = data[0]
             token = result
@@ -149,9 +165,28 @@ def prepare_trading(signals):
             
             print('___________________________ START PLACING TRADES________________________________________')
             for s in signals:
-                executeTrade(token, s['Lot Size'], s['TP'], s['SL'] )
+                for tokens in tokenn:
+                    token = tokens[0]
 
-            print('___________________________ TRADE PLACE________________________________________')  
+                    symbols = client.query(f"""
+                        SELECT symbol
+                        FROM symbols
+                        WHERE token = '{token}' 
+                    """)
+                    symbolss = symbols.result_set
+
+                    for sym in symbolss:
+                        symbol = sym[0]
+
+                        if  (local_symbol == symbol):
+                            # calculate risk analysis and position size
+                            position_size = await calculate_risk(s['Entry'], s['SL'],  token)
+
+                            # placing trade iif amount if greater than 1
+                            if position_size > 0:
+                                print('___________________________ START PLACING TRADES________________________________________')
+                                executeTrade(token, position_size, s['TP'], s['SL'], symbol )
+                                print('___________________________ TRADE PLACED________________________________________')  
         else:
             return({"error": "Token not found"})
 

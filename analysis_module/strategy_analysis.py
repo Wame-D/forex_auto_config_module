@@ -7,6 +7,7 @@ from .risk_management import (
     calculate_position_size,
 )
 from .constants import ACCOUNT_BALANCE, DEFAULT_BUFFER_PIPS, EXOTIC_PAIRS
+from .constants import REWARD_TO_RISK_RATIO, PIP_VALUE
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -56,6 +57,34 @@ def analyze_malaysian_strategy(candles: List[Dict[str, Any]]) -> Dict[str, Any]:
                     "Risk Amount": risk_amount,
                     "Position Size": position_size,
                 })
+                start_time = current_candle["timestamp"]
+                end_time = start_time + timedelta(hours=4)
+                segment = [c for c in candles_15m if start_time <= c["timestamp"] < end_time]
+
+                confirmation = any(
+                    (signal_type == "Buy" and c["close"] > c["open"]) or
+                    (signal_type == "Sell" and c["close"] < c["open"]) for c in segment
+                )
+
+                if confirmation:
+                    stop_loss = (
+                        entry_price - (prev_candle["high"] - prev_candle["low"]) * PIP_VALUE
+                        if signal_type == "Buy"
+                        else entry_price + (prev_candle["high"] - prev_candle["low"]) * PIP_VALUE
+                    )
+                    take_profit = (
+                        entry_price + REWARD_TO_RISK_RATIO * (entry_price - stop_loss)
+                        if signal_type == "Buy"
+                        else entry_price - REWARD_TO_RISK_RATIO * (stop_loss - entry_price)
+                    )
+
+                    signals.append({
+                        "Signal": signal_type,
+                        "Entry": round(entry_price, 2),
+                        "SL": round(stop_loss, 2),
+                        "TP": round(take_profit, 2),
+                        "Lot Size": 0,
+                    })
 
         logger.info(f"Generated {len(signals)} signals.")
         return {
