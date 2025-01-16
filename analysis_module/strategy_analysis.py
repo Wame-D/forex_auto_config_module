@@ -30,7 +30,7 @@ def analyze_malaysian_strategy(
 
             signal_type = None
             entry_price = current_candle["close"]
-            pair = current_candle.get("pair", "Unknown")
+            pair = current_candle.get("pair", "frxEURUSD")
 
             # Skip exotic pairs
             if pair in EXOTIC_PAIRS:
@@ -59,9 +59,9 @@ def analyze_malaysian_strategy(
                 signals.append({
                     "Pair": pair,
                     "Signal": signal_type,
-                    "Entry": round(entry_price, 5),
-                    "SL": round(stop_loss, 5),
-                    "TP": round(take_profit, 5),
+                    "Entry": round(entry_price, 2),
+                    "SL": round(stop_loss, 2),
+                    "TP": round(take_profit, 2),
                     "Risk Amount":1,
                     "Position Size": 1,
                 })

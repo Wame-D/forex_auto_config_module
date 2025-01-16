@@ -166,24 +166,28 @@ async def prepare_trading(signals):
 
                     for sym in symbolss:
                         symbol = sym[0]
+                        print(symbol)
 
                         if  (local_symbol == symbol):
                             # calculate risk analysis and position size
                             risk_amount = await calculate_risk(token)
-                            position_size = await calculate_position_size(risk_amount ,s['Entry'], s['SL'])
+                            # position_size = await calculate_position_size(risk_amount ,s['Entry'], s['SL'])
 
                             # placing trade iif amount if greater than 1
                             if risk_amount > 0:
-                                if (s[Signal] == "Buy"):
+                             
+                                if s['Signal'] == "Buy":
                                     print('___________________________ START BUYING________________________________________')
                                     executeTrade(token, risk_amount, s['TP'], s['SL'], symbol )
                                     print('___________________________ TRADE PLACED________________________________________') 
-                                elif (s[Signal] == "Sell"):
+                                elif s['Signal'] == "Sell":
                                     print('___________________________ START SELLING________________________________________')
                                     # executeTrade(token, risk_amount, s['TP'], s['SL'], symbol )
                                     print('___________________________ TRADE PLACED________________________________________') 
                                 else:
                                     print('___________________________ UNKNOWN SIGNAL TYPE________________________________________')
+                            else:
+                                print("trade failed")
 
 
         else:
