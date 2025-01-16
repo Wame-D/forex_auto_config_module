@@ -1,13 +1,33 @@
 from .constants import PIP_VALUE, RISK_PERCENTAGE, REWARD_TO_RISK_RATIO
+import asyncio
+from deriv_api import DerivAPI
 
-def calculate_risk_amount(account_balance: float) -> float:
+async def calculate_risk(token) -> float:
     """
     Calculates the maximum monetary risk based on account balance and risk percentage.
     """
-    if account_balance <= 0:
-        raise ValueError("Account balance must be greater than zero.")
-    
-    return round(account_balance * (RISK_PERCENTAGE / 100), 2)
+    app_id = 65102
+    try:
+        # Initialize the API
+        api = DerivAPI(app_id=app_id)
+        authorize = await api.authorize(token)
+
+        # Get account balance
+        response = await api.balance()
+        balance = response.get('balance', {}).get('balance', 0)
+
+        if balance <= 0:
+            print("Balance is zero or negative.")
+            return 0.0
+
+        risk_amount = balance * (RISK_PERCENTAGE / 100)
+        # position_size = risk_amount / abs(entry_price - stop_loss)
+        return round(risk_amount, 2)
+
+    except Exception as e:
+        print("Error:", e)
+        return -0.0 
+
 
 def calculate_stop_loss(entry_price: float, signal_type: str, buffer_pips: int) -> float:
     """
@@ -21,6 +41,7 @@ def calculate_stop_loss(entry_price: float, signal_type: str, buffer_pips: int) 
     else:
         raise ValueError("Invalid signal type. Must be 'Buy' or 'Sell'.")
 
+
 def calculate_take_profit(entry_price: float, stop_loss: float, signal_type: str) -> float:
     """
     Calculates the take profit based on the risk distance and reward-to-risk ratio.
@@ -33,6 +54,7 @@ def calculate_take_profit(entry_price: float, stop_loss: float, signal_type: str
     else:
         raise ValueError("Invalid signal type. Must be 'Buy' or 'Sell'.")
 
+
 def calculate_position_size(risk_amount: float, entry_price: float, stop_loss: float) -> float:
     """
     Calculates the position size (lot size) based on the risk amount and pip risk.
@@ -42,3 +64,4 @@ def calculate_position_size(risk_amount: float, entry_price: float, stop_loss: f
         raise ValueError("Stop loss cannot equal entry price.")
     
     return round(risk_amount / (pip_risk / PIP_VALUE), 2)
+

@@ -7,6 +7,7 @@ import pytz
 import asyncio
 from forex.clickhouse.connection import get_clickhouse_client
 from trade.views import executeTrade
+from .risk_management import calculate_risk
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -55,9 +56,9 @@ async def main():
         else:
             logging.info("No trading signals generated.")
 
-        if len(signals) > 0:
+        if len(signals[0]) > 0:
             save_signals_to_clickhouse(signals)
-            prepare_trading(signals)
+            await prepare_trading(signals)
         else:
             print("No signal generated")
     
@@ -88,7 +89,7 @@ def save_signals_to_clickhouse(signals):
     Save trading signals to a ClickHouse database.
 
     Args:
-        signals (list of dict): A list of signals containing details like Signal, Entry, SL, TP, and Lot Size.
+        signals (list of dict): A list of signals containing details like Signal, Entry, SL, TP, and Risk Amount.
     """
     try:
         table_name = "trading_signals"
@@ -101,24 +102,26 @@ def save_signals_to_clickhouse(signals):
         create_table_query = f"""
             CREATE TABLE IF NOT EXISTS {table_name} (
                 timestamp DateTime,
+                Pair String,
                 Signal String,
                 Entry Float64,
                 SL Float64,
                 TP Float64,
-                Lot_Size Float64
+                Risk_Amount Float64,
+                Position_size Float64,
             ) ENGINE = MergeTree()
             ORDER BY timestamp
         """
         client.command(create_table_query)
       
         print("___________________________STARTED STORING SIGNALS________________________________________")
-        for s in signals:
+        for s in signals[0]:
             client.command(f"""
-                INSERT INTO trading_signals (timestamp, Signal, Entry, SL, TP, Lot_Size) 
-                VALUES (NOW(), '{s['Signal']}', {s['Entry']}, {s['SL']}, {s['TP']}, {s['Lot Size']})
+                INSERT INTO trading_signals (timestamp, Pair, Signal, Entry, SL, TP, Risk_Amount, Position_size ) 
+                VALUES (NOW(),  '{s['Pair']}', '{s['Signal']}', {s['Entry']}, {s['SL']}, {s['TP']}, {s['Risk Amount']}, {s['Position Size']})
                 """)
             
-            print(f"[{timestamp_cat}] Stored: {s['Signal']}, {s['Entry']}, {s['SL']}, {s['TP']}, {s['Lot Size']}")
+            print(f"[{timestamp_cat}] Stored:  '{s['Pair']}', '{s['Signal']}', {s['Entry']}, {s['SL']}, {s['TP']}, {s['Risk Amount']}, {s['Position Size']}")
 
         print('___________________________ SIGNALS STORED________________________________________')
 
@@ -126,32 +129,67 @@ def save_signals_to_clickhouse(signals):
         print(f"Error storing signals: {e}")
 
 # Preparing trading 
-def prepare_trading(signals):
+async def prepare_trading(signals):
     try:
         strategy = "malysian"
+        local_symbol = "frxEURUSD"
 
         if not strategy:
             return("strategy needed")
 
-        # Fetch the strategy from the database
-        result = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"
-        # result = client.query(f"""
-        #     SELECT token
-        #     FROM userdetails 
-        #     WHERE strategy = '{strategy}' AND trading = true
-        # """)
+        # Fetch the token from the database
+        result = client.query(f"""
+            SELECT token
+            FROM userdetails 
+            WHERE strategy = '{strategy}' AND trading = true
+        """)
         
         if result:
-            # data = result.result_set[0]
-            # token = data[0]
-            token = result
-            print(token)
-            
-            print('___________________________ START PLACING TRADES________________________________________')
-            for s in signals:
-                executeTrade(token, s['Lot Size'], s['TP'], s['SL'] )
+            tokenn  = result.result_set
 
-            print('___________________________ TRADE PLACE________________________________________')  
+            """
+            For each signal fetch tokens that  choose that strategy
+            then using that token also chek those who selected that given symbol
+            place trades if choosen symboll and strategy matches what user selected
+            fetch balance and calculate  statke amount based on that
+            """
+            for s in signals[0]:
+                for tokens in tokenn:
+                    token = tokens[0]
+
+                    symbols = client.query(f"""
+                        SELECT symbol
+                        FROM symbols
+                        WHERE token = '{token}' 
+                    """)
+                    symbolss = symbols.result_set
+
+                    for sym in symbolss:
+                        symbol = sym[0]
+                        print(symbol)
+
+                        if  (local_symbol == symbol):
+                            # calculate risk analysis and position size
+                            risk_amount = await calculate_risk(token)
+                            # position_size = await calculate_position_size(risk_amount ,s['Entry'], s['SL'])
+
+                            # placing trade iif amount if greater than 1
+                            if risk_amount > 0:
+                             
+                                if s['Signal'] == "Buy":
+                                    print('___________________________ START BUYING________________________________________')
+                                    executeTrade(token, risk_amount, s['TP'], s['SL'], symbol )
+                                    print('___________________________ TRADE PLACED________________________________________') 
+                                elif s['Signal'] == "Sell":
+                                    print('___________________________ START SELLING________________________________________')
+                                    # executeTrade(token, risk_amount, s['TP'], s['SL'], symbol )
+                                    print('___________________________ TRADE PLACED________________________________________') 
+                                else:
+                                    print('___________________________ UNKNOWN SIGNAL TYPE________________________________________')
+                            else:
+                                print("trade failed")
+
+
         else:
             return({"error": "Token not found"})
 

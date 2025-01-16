@@ -1,6 +1,5 @@
 from django.http import JsonResponse
 from django.shortcuts import render
-# import websocket
 from websocket import create_connection
 
 import json
@@ -16,16 +15,16 @@ def send_request(ws, request):
 
 
 # Testing FUNCTION
-def executeTrade(token, lot_size, tp, sl):
+def executeTrade(token, lot_size, tp, sl, symbol):
     # Define the proposal details
     proposal_details = {
         "url": "wss://ws.binaryws.com/websockets/v3?app_id=65102",
-        "token": token,  # Replace actual token, if you have implemented.
-        "symbol": "frxEURUSD",
-        "amount": lot_size,  # Stake amount
-        "multiplier": 30,  # Multiplier value
-        "take_profit": tp,  # Take profit limit
-        "stop_loss": sl   # Stop loss limit
+        "token": token, 
+        "symbol": symbol,
+        "amount": lot_size,  
+        "multiplier": 30, 
+        "take_profit": tp, 
+        "stop_loss": sl  
     }
 
     # Call the fxTradeMultiplier function with the proposal details
@@ -87,7 +86,7 @@ def fxTradeMultiplier(url, token, symbol, amount, multiplier, take_profit, stop_
         "contract_type": "MULTUP",
         "currency": "USD",
         "symbol": symbol,
-        "amount": 5,
+        "amount": amount,
         "multiplier": multiplier,
         "limit_order": {
             "take_profit": take_profit * 3,
