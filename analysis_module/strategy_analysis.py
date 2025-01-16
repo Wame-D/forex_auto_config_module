@@ -4,7 +4,6 @@ from typing import List, Dict, Any
 from .risk_management import (
     calculate_stop_loss,
     calculate_take_profit,
-    calculate_position_size,
 )
 from .constants import (
     DEFAULT_BUFFER_PIPS,
@@ -12,12 +11,12 @@ from .constants import (
     PIP_VALUE,
     HIGH_RISK_RATIO,
     LOW_RISK_RATIO,
-    TIMEFRAMES,
 )
 
 # Set up logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+
 
 def is_price_within_safe_zone(
     candle: Dict[str, Any], signal_type: str, safe_zone_top: float, safe_zone_bottom: float
@@ -26,19 +25,19 @@ def is_price_within_safe_zone(
     Check if the price is within the defined safe zone.
     """
     if signal_type == "Buy":
-        return safe_zone_bottom <= candle["low"] <= safe_zone_top  # Buy signal: low of the candle within the safe zone
+        return safe_zone_bottom <= candle["low"] <= safe_zone_top
     elif signal_type == "Sell":
-        return safe_zone_bottom <= candle["high"] <= safe_zone_top  # Sell signal: high of the candle within the safe zone
+        return safe_zone_bottom <= candle["high"] <= safe_zone_top
     return False
 
 
 def has_reversal_pattern(candle: Dict[str, Any], signal_type: str) -> bool:
     """
-    Check if a reversal pattern (bullish for buy, bearish for sell) exists.
+    Check if a reversal pattern exists (bullish for Buy, bearish for Sell).
     """
-    if signal_type == "Buy" and candle["close"] > candle["open"]:  # Bullish pattern for buy
+    if signal_type == "Buy" and candle["close"] > candle["open"]:
         return True
-    elif signal_type == "Sell" and candle["close"] < candle["open"]:  # Bearish pattern for sell
+    elif signal_type == "Sell" and candle["close"] < candle["open"]:
         return True
     return False
 
@@ -47,7 +46,7 @@ def validate_small_support_resistance(
     candles_15m: List[Dict[str, Any]], signal_type: str, safe_zone_top: float, safe_zone_bottom: float
 ) -> bool:
     """
-    Validate if there are small support or resistance levels within the safe zone on the 15-minute chart.
+    Validate small support or resistance levels within the safe zone on the 15-minute chart.
     """
     for candle in candles_15m:
         if is_price_within_safe_zone(candle, signal_type, safe_zone_top, safe_zone_bottom) and has_reversal_pattern(candle, signal_type):
@@ -55,9 +54,11 @@ def validate_small_support_resistance(
     return False
 
 
-def get_signal_type_and_safe_zone(prev_candle: Dict[str, Any], current_candle: Dict[str, Any]) -> Dict[str, Any]:
+def get_signal_type_and_safe_zone(
+    prev_candle: Dict[str, Any], current_candle: Dict[str, Any]
+) -> Dict[str, Any]:
     """
-    Identify the signal type (Buy/Sell) and calculate the safe zone based on previous and current candle.
+    Identify the signal type (Buy/Sell) and calculate the safe zone based on the previous and current candles.
     """
     signal_type = None
     safe_zone_top = None
@@ -75,19 +76,70 @@ def get_signal_type_and_safe_zone(prev_candle: Dict[str, Any], current_candle: D
     return {
         "signal_type": signal_type,
         "safe_zone_top": safe_zone_top,
-        "safe_zone_bottom": safe_zone_bottom
+        "safe_zone_bottom": safe_zone_bottom,
     }
+
+
+def adjust_sl_tp_within_15m(
+    candles_15m: List[Dict[str, Any]], signal: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Adjust the Stop Loss (SL) and Take Profit (TP) based on the next 15 minutes' price action.
+    """
+    entry_price = signal["Entry"]
+    signal_type = signal["Signal"]
+    adjusted_sl = signal["SL"]
+    adjusted_tp = signal["TP"]
+
+    for candle in candles_15m:
+        if signal_type == "Buy":
+            if candle["low"] < adjusted_sl:
+                adjusted_sl = candle["low"]
+            if candle["high"] > adjusted_tp:
+                adjusted_tp = candle["high"]
+        elif signal_type == "Sell":
+            if candle["high"] > adjusted_sl:
+                adjusted_sl = candle["high"]
+            if candle["low"] < adjusted_tp:
+                adjusted_tp = candle["low"]
+
+    # Recalculate TP to maintain a favorable risk-reward ratio
+    if signal_type == "Buy":
+        adjusted_tp = max(adjusted_tp, entry_price + (entry_price - adjusted_sl) * HIGH_RISK_RATIO)
+    elif signal_type == "Sell":
+        adjusted_tp = min(adjusted_tp, entry_price - (adjusted_sl - entry_price) * HIGH_RISK_RATIO)
+
+    signal["SL"] = round(adjusted_sl, 2)
+    signal["TP"] = round(adjusted_tp, 2)
+    return signal
+
+
+def filter_perfect_signals(signals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Filters signals to retain only the ones that meet all requirements and are highly profitable.
+    """
+    filtered_signals = []
+    for signal in signals:
+        try:
+            risk_reward_ratio = abs((signal["TP"] - signal["Entry"]) / (signal["Entry"] - signal["SL"]))
+            if risk_reward_ratio >= 2:  # Require at least a 2:1 risk-reward ratio
+                filtered_signals.append(signal)
+        except ZeroDivisionError:
+            logger.warning(f"Skipping signal with invalid SL/Entry values: {signal}")
+    logger.info(f"Filtered signals: {len(filtered_signals)} out of {len(signals)}.")
+    return filtered_signals
+
 
 def analyze_malaysian_strategy(
     candles_4h: List[Dict[str, Any]], candles_15m: List[Dict[str, Any]]
 ) -> List[Dict[str, Any]]:
     """
-    Analyzes forex data using the Professional Malaysian Forex Trading Strategy.
+    Analyzes forex data using the enhanced Malaysian Forex Trading Strategy.
 
     Returns:
-        List[Dict[str, Any]]: A list of signals with relevant trade details.
+        List[Dict[str, Any]]: A list of perfect trading signals that meet all requirements.
     """
-    logger.info("Starting analysis for Professional Malaysian Forex Strategy...")
+    logger.info("Starting analysis for Enhanced Malaysian Forex Strategy...")
     signals = []
 
     try:
@@ -130,12 +182,13 @@ def analyze_malaysian_strategy(
             stop_loss = calculate_stop_loss(entry_price, signal_type, DEFAULT_BUFFER_PIPS)
             take_profit = calculate_take_profit(entry_price, stop_loss, signal_type, LOW_RISK_RATIO)
 
+            # Validate SL and TP
             if stop_loss == entry_price or take_profit == entry_price:
                 logger.warning(f"Invalid SL/TP values for signal at index {i}. Skipping...")
                 continue
 
-            # Append the signal
-            signals.append({
+            # Create the initial signal
+            signal = {
                 "Pair": pair,
                 "Signal": signal_type,
                 "Entry": round(entry_price, 2),
@@ -145,11 +198,19 @@ def analyze_malaysian_strategy(
                 "Position Size": 1,  # Placeholder
                 "Safe Zone Top": round(safe_zone_top, 5),
                 "Safe Zone Bottom": round(safe_zone_bottom, 5),
-            })
+            }
 
-        logger.info(f"Generated {len(signals)} signals.")
-    
-        return signals
+            # Adjust SL and TP within the next 15 minutes
+            signal = adjust_sl_tp_within_15m(candles_15m, signal)
+
+            # Append the adjusted signal
+            signals.append(signal)
+
+        # Filter signals to retain only perfect ones
+        perfect_signals = filter_perfect_signals(signals)
+
+        logger.info(f"Generated {len(perfect_signals)} perfect signals.")
+        return perfect_signals
 
     except Exception as e:
         logger.exception("Error during strategy analysis.")
