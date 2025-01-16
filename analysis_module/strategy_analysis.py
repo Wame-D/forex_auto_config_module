@@ -1,12 +1,11 @@
 import logging
 from typing import List, Dict, Any
 from .risk_management import (
-    calculate_risk_amount,
     calculate_stop_loss,
     calculate_take_profit,
     calculate_position_size,
 )
-from .constants import ACCOUNT_BALANCE, DEFAULT_BUFFER_PIPS, EXOTIC_PAIRS
+from .constants import DEFAULT_BUFFER_PIPS, EXOTIC_PAIRS
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -40,11 +39,8 @@ def analyze_malaysian_strategy(candles: List[Dict[str, Any]]) -> Dict[str, Any]:
                 signal_type = "Sell"
 
             if signal_type:
-                # Calculate risk, SL, TP, and position size
-                # risk_amount = calculate_risk_amount(ACCOUNT_BALANCE)
                 stop_loss = calculate_stop_loss(entry_price, signal_type, DEFAULT_BUFFER_PIPS)
                 take_profit = calculate_take_profit(entry_price, stop_loss, signal_type)
-                # position_size = calculate_position_size(risk_amount, entry_price, stop_loss)
 
                 # Append signal details
                 signals.append({

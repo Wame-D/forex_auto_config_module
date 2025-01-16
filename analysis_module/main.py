@@ -178,7 +178,7 @@ async def prepare_trading(signals):
                                     print('___________________________ START BUYING________________________________________')
                                     executeTrade(token, risk_amount, s['TP'], s['SL'], symbol )
                                     print('___________________________ TRADE PLACED________________________________________') 
-                                else if (s[Signal] == "Sell"):
+                                elif (s[Signal] == "Sell"):
                                     print('___________________________ START SELLING________________________________________')
                                     # executeTrade(token, risk_amount, s['TP'], s['SL'], symbol )
                                     print('___________________________ TRADE PLACED________________________________________') 

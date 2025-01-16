@@ -1,6 +1,5 @@
 from django.http import JsonResponse
 from django.shortcuts import render
-# import websocket
 from websocket import create_connection
 
 import json
