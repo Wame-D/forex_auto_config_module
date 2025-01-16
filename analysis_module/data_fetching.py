@@ -69,7 +69,7 @@ def get_candles():
         result = client.query("""
             SELECT * 
             FROM candles 
-            WHERE timestamp >= now() - INTERVAL 24 HOUR 
+            WHERE timestamp >= now() - INTERVAL 720 HOUR 
             ORDER BY timestamp
         """)
 
