@@ -2,6 +2,7 @@ import logging
 from datetime import datetime, timedelta
 import pytz
 import asyncio
+
 from .data_fetching import fetch_forex_data
 from .data_aggregation import aggregate_data
 from .strategy_analysis import analyze_malaysian_strategy
@@ -116,7 +117,7 @@ async def prepare_trading(signals):
     Prepare and execute trades based on generated signals.
     """
     try:
-        strategy = "malysian"
+        strategy = "malaysian"
         local_symbol = "frxEURUSD"
 
         print("[INFO] Preparing trading...")
@@ -125,25 +126,48 @@ async def prepare_trading(signals):
             WHERE strategy = '{strategy}' AND trading = true
         """)
 
-        if not result.result_set:
-            print("[WARNING] No active tokens found for the specified strategy.")
-            return
+            """
+            For each signal fetch tokens that  choose that strategy
+            then using that token also chek those who selected that given symbol
+            place trades if choosen symboll and strategy matches what user selected
+            fetch balance and calculate  statke amount based on that
+            """
+            print('___________________________ START BUYING________________________________________')
+            for s in signals[0]:
+                for tokens in tokenn:
+                    token = tokens[0]
 
         tokens = [row[0] for row in result.result_set]
         print(f"[INFO] Found tokens for trading: {tokens}")
 
-        for signal in signals:
-            for token in tokens:
-                symbols_result = client.query(f"""
-                    SELECT symbol FROM symbols 
-                    WHERE token = '{token}'
-                """)
-                symbols = [row[0] for row in symbols_result.result_set]
+                    for sym in symbolss:
+                        symbol = sym[0]
 
-                if local_symbol in symbols:
-                    print(f"[INFO] Token {token} is linked to symbol {local_symbol}. Calculating risk...")
-                    risk_amount = await calculate_risk(token,signal['Entry'],signal['SL'])
-                    print(f"[INFO] Risk amount calculated: {risk_amount}")
+                        if  (local_symbol == symbol):
+                            # calculate risk analysis and position size
+                            risk_amount = await calculate_risk(token)
+                            # position_size = await calculate_position_size(risk_amount ,s['Entry'], s['SL'])
+
+                            # placing trade iif amount if greater than 1
+                            if risk_amount > 0:
+                             
+                                if s['Signal'] == "Buy":
+                                    
+                                    executeTrade(token, risk_amount, s['TP'], s['SL'], symbol )
+                                    print('___________________________ TRADE PLACED________________________________________') 
+                                elif s['Signal'] == "Sell":
+                                    print("the signal is a buy")
+                                    # executeTrade(token, risk_amount, s['TP'], s['SL'], symbol )
+                                    
+                                else:
+                                    print('___________________________ UNKNOWN SIGNAL TYPE________________________________________')
+                            else:
+                                print("trade failed")
+                
+
+
+        else:
+            return({"error": "Token not found"})
 
                     if risk_amount > 0:
                         if signal['Signal'] == "Buy":
