@@ -41,10 +41,10 @@ def analyze_malaysian_strategy(candles: List[Dict[str, Any]]) -> Dict[str, Any]:
 
             if signal_type:
                 # Calculate risk, SL, TP, and position size
-                risk_amount = calculate_risk_amount(ACCOUNT_BALANCE)
+                # risk_amount = calculate_risk_amount(ACCOUNT_BALANCE)
                 stop_loss = calculate_stop_loss(entry_price, signal_type, DEFAULT_BUFFER_PIPS)
                 take_profit = calculate_take_profit(entry_price, stop_loss, signal_type)
-                position_size = calculate_position_size(risk_amount, entry_price, stop_loss)
+                # position_size = calculate_position_size(risk_amount, entry_price, stop_loss)
 
                 # Append signal details
                 signals.append({
@@ -53,8 +53,8 @@ def analyze_malaysian_strategy(candles: List[Dict[str, Any]]) -> Dict[str, Any]:
                     "Entry": round(entry_price, 5),
                     "SL": round(stop_loss, 5),
                     "TP": round(take_profit, 5),
-                    "Risk Amount": risk_amount,
-                    "Position Size": position_size,
+                    "Risk Amount": 1,
+                    "Position Size": 1,
                 })
 
         logger.info(f"Generated {len(signals)} signals.")

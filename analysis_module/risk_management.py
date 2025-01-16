@@ -1,8 +1,8 @@
-from .constants import PIP_VALUE, RISK_PERCENTAGE
+from .constants import PIP_VALUE, RISK_PERCENTAGE, REWARD_TO_RISK_RATIO
 import asyncio
 from deriv_api import DerivAPI
 
-async def calculate_risk(entry_price: float, stop_loss: float, token) -> float:
+async def calculate_risk(token) -> float:
     """
     Calculates position size based on account balance and risk percentage.
     """
@@ -21,8 +21,8 @@ async def calculate_risk(entry_price: float, stop_loss: float, token) -> float:
             return 0.0
 
         risk_amount = balance * (RISK_PERCENTAGE / 100)
-        position_size = risk_amount / abs(entry_price - stop_loss)
-        return round(position_size, 2)
+        # position_size = risk_amount / abs(entry_price - stop_loss)
+        return round(risk_amount, 2)
 
     except Exception as e:
         print("Error:", e)

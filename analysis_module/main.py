@@ -102,11 +102,13 @@ def save_signals_to_clickhouse(signals):
         create_table_query = f"""
             CREATE TABLE IF NOT EXISTS {table_name} (
                 timestamp DateTime,
+                Pair String,
                 Signal String,
                 Entry Float64,
                 SL Float64,
                 TP Float64,
-                Lot_Size Float64
+                Risk_Amount Float64,
+                Position_size Float64,
             ) ENGINE = MergeTree()
             ORDER BY timestamp
         """
@@ -115,11 +117,11 @@ def save_signals_to_clickhouse(signals):
         print("___________________________STARTED STORING SIGNALS________________________________________")
         for s in signals:
             client.command(f"""
-                INSERT INTO trading_signals (timestamp, Signal, Entry, SL, TP, Lot_Size) 
-                VALUES (NOW(), '{s['Signal']}', {s['Entry']}, {s['SL']}, {s['TP']}, {s['Lot Size']})
+                INSERT INTO trading_signals (timestamp, Pair, Signal, Entry, SL, TP, Risk_Amount, Position_size ) 
+                VALUES (NOW(),  '{s['Pair']}', '{s['Signal']}', {s['Entry']}, {s['SL']}, {s['TP']}, {s['Risk Amount']}, {s['Position Size']})
                 """)
             
-            print(f"[{timestamp_cat}] Stored: {s['Signal']}, {s['Entry']}, {s['SL']}, {s['TP']}, {s['Lot Size']}")
+            print(f"[{timestamp_cat}] Stored:  '{s['Pair']}', '{s['Signal']}', {s['Entry']}, {s['SL']}, {s['TP']}, {s['Risk Amount']}, {s['Position Size']}")
 
         print('___________________________ SIGNALS STORED________________________________________')
 
@@ -167,13 +169,23 @@ async def prepare_trading(signals):
 
                         if  (local_symbol == symbol):
                             # calculate risk analysis and position size
-                            position_size = await calculate_risk(s['Entry'], s['SL'],  token)
+                            risk_amount = await calculate_risk(token)
+                            position_size = await calculate_position_size(risk_amount ,s['Entry'], s['SL'])
 
                             # placing trade iif amount if greater than 1
                             if position_size > 0:
-                                print('___________________________ START PLACING TRADES________________________________________')
-                                executeTrade(token, position_size, s['TP'], s['SL'], symbol )
-                                print('___________________________ TRADE PLACED________________________________________')  
+                                if (s[Signal] == "Buy"):
+                                    print('___________________________ START BUYING________________________________________')
+                                    executeTrade(token, risk_amount, s['TP'], s['SL'], symbol )
+                                    print('___________________________ TRADE PLACED________________________________________') 
+                                else if (s[Signal] == "Sell"):
+                                    print('___________________________ START SELLING________________________________________')
+                                    # executeTrade(token, risk_amount, s['TP'], s['SL'], symbol )
+                                    print('___________________________ TRADE PLACED________________________________________') 
+                                else:
+                                    print('___________________________ UNKNOWN SIGNAL TYPE________________________________________')
+
+
         else:
             return({"error": "Token not found"})
 
