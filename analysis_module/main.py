@@ -4,7 +4,7 @@ import pytz
 import asyncio
 from .data_fetching import fetch_forex_data
 from .data_aggregation import aggregate_data
-from .strategy_analysis import analyze_malaysian_strategy
+from .strategy_analysis import analysis
 from .risk_management import calculate_risk
 from forex.clickhouse.connection import get_clickhouse_client
 from trade.views import executeTrade
@@ -42,14 +42,17 @@ async def main():
             print("[INFO] Forex data fetched successfully.")
 
             # Aggregate data
-            print("[INFO] Aggregating data into 4H and 15M intervals...")
+            print("[INFO] Aggregating data into 4H ,30M and 15M intervals...")
             df_4h = aggregate_data(df_minute, "4H")
             df_15m = aggregate_data(df_minute, "15M")
+            df_30m = aggregate_data(df_minute, "30M")
             print("[INFO] Data aggregation complete.")
 
             # Analyze strategy and generate signals
             print("[INFO] Analyzing trading strategy...")
-            signals = analyze_malaysian_strategy(df_4h, df_15m)
+            #strategy_type = "Malaysian" 
+            strategy_type = "Moving Average" 
+            signals = analysis(df_4h,df_30m, df_15m, strategy_type)
 
             if signals:
                 save_signals_to_clickhouse(signals)
@@ -82,8 +85,6 @@ def save_signals_to_clickhouse(signals):
                 Entry Float64,
                 SL Float64,
                 TP Float64,
-                Risk_Amount Float64,
-                Position_Size Float64,
                 Safe_Zone_Top Float64,
                 Safe_Zone_Bottom Float64
             ) ENGINE = MergeTree()
@@ -97,9 +98,8 @@ def save_signals_to_clickhouse(signals):
             try:
                 client.command(f"""
                     INSERT INTO {table_name} 
-                    (timestamp, Pair, Signal, Entry, SL, TP, Risk_Amount, Position_Size, Safe_Zone_Top, Safe_Zone_Bottom)
-                    VALUES (NOW(), '{signal['Pair']}', '{signal['Signal']}', {signal['Entry']}, {signal['SL']}, {signal['TP']},
-                            {signal['Risk Amount']}, {signal['Position Size']}, {signal['Safe Zone Top']}, {signal['Safe Zone Bottom']})
+                    (timestamp, Pair, Signal, Entry, SL, TP,Safe_Zone_Top, Safe_Zone_Bottom)
+                    VALUES (NOW(), '{signal['Pair']}', '{signal['Signal']}', {signal['Entry']}, {signal['SL']}, {signal['TP']}, {signal['Safe Zone Top']}, {signal['Safe Zone Bottom']})
                 """)
                 print(f"[INFO] Signal stored: {signal}")
             except Exception as e:
