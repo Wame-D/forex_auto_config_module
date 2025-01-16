@@ -146,6 +146,12 @@ async def prepare_trading(signals):
         if result:
             tokenn  = result.result_set
 
+            """
+            For each signal fetch tokens that  choose that strategy
+            then using that token also chek those who selected that given symbol
+            place trades if choosen symboll and strategy matches what user selected
+            fetch balance and calculate  statke amount based on that
+            """
             for s in signals:
                 for tokens in tokenn:
                     token = tokens[0]
