@@ -63,7 +63,6 @@ def fetch_forex_data() -> Optional[List[Dict[str, Any]]]:
 # fETCHING eURO/USD candles  
 def get_candles():
     try:
-
         #valid_tables = ['candles', 'v75_candles', 'us30_candles']
         # Execute the query to fetch candle data
         result = client.query("""
