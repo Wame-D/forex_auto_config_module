@@ -4,7 +4,7 @@ from deriv_api import DerivAPI
 
 async def calculate_risk(token) -> float:
     """
-    Calculates position size based on account balance and risk percentage.
+    Calculates the maximum monetary risk based on account balance and risk percentage.
     """
     app_id = 65102
     try:

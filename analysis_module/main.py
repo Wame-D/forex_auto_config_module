@@ -56,7 +56,7 @@ async def main():
         else:
             logging.info("No trading signals generated.")
 
-        if len(signals) > 0:
+        if len(signals[0]) > 0:
             save_signals_to_clickhouse(signals)
             await prepare_trading(signals)
         else:
@@ -89,7 +89,7 @@ def save_signals_to_clickhouse(signals):
     Save trading signals to a ClickHouse database.
 
     Args:
-        signals (list of dict): A list of signals containing details like Signal, Entry, SL, TP, and Lot Size.
+        signals (list of dict): A list of signals containing details like Signal, Entry, SL, TP, and Risk Amount.
     """
     try:
         table_name = "trading_signals"
@@ -115,7 +115,7 @@ def save_signals_to_clickhouse(signals):
         client.command(create_table_query)
       
         print("___________________________STARTED STORING SIGNALS________________________________________")
-        for s in signals:
+        for s in signals[0]:
             client.command(f"""
                 INSERT INTO trading_signals (timestamp, Pair, Signal, Entry, SL, TP, Risk_Amount, Position_size ) 
                 VALUES (NOW(),  '{s['Pair']}', '{s['Signal']}', {s['Entry']}, {s['SL']}, {s['TP']}, {s['Risk Amount']}, {s['Position Size']})
@@ -153,7 +153,7 @@ async def prepare_trading(signals):
             place trades if choosen symboll and strategy matches what user selected
             fetch balance and calculate  statke amount based on that
             """
-            for s in signals:
+            for s in signals[0]:
                 for tokens in tokenn:
                     token = tokens[0]
 
@@ -173,7 +173,7 @@ async def prepare_trading(signals):
                             position_size = await calculate_position_size(risk_amount ,s['Entry'], s['SL'])
 
                             # placing trade iif amount if greater than 1
-                            if position_size > 0:
+                            if risk_amount > 0:
                                 if (s[Signal] == "Buy"):
                                     print('___________________________ START BUYING________________________________________')
                                     executeTrade(token, risk_amount, s['TP'], s['SL'], symbol )
