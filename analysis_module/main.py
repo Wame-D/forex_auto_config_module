@@ -29,35 +29,42 @@ async def main():
             aligned_time = now_utc.replace(second=0, microsecond=0)
             aligned_time_cat = aligned_time.astimezone(CAT_TIMEZONE)
 
+            print(f"\n[INFO] Current UTC Time: {now_utc}")
+            print(f"[INFO] Aligned Time (CAT): {aligned_time_cat}")
+
             # Fetch data
             logging.info("Fetching forex data...")
             df_minute = fetch_forex_data()
             if df_minute is None:
-                logging.error("Failed to fetch forex data.")
+                print("[ERROR] Failed to fetch forex data. Retrying in 60 seconds...")
                 await asyncio.sleep(60)
                 continue
 
+            print("[INFO] Forex data fetched successfully.")
+
             # Aggregate data
+            print("[INFO] Aggregating data into 4H and 15M intervals...")
             df_4h = aggregate_data(df_minute, "4H")
             df_15m = aggregate_data(df_minute, "15M")
+            print("[INFO] Data aggregation complete.")
 
             # Analyze strategy and generate signals
-            logging.info("Analyzing strategy...")
+            print("[INFO] Analyzing trading strategy...")
             signals = analyze_malaysian_strategy(df_4h, df_15m)
 
             if signals:
-                logging.info(f"Generated trading signals: {signals}")
                 save_signals_to_clickhouse(signals)
                 await prepare_trading(signals)
             else:
-                logging.info("No trading signals generated.")
+                print("[INFO] No trading signals generated.")
 
         except Exception as e:
+            print(f"[ERROR] Exception in main loop: {e}")
             logging.error(f"Error in main loop: {e}")
 
         # Sleep for the next interval (4 hours)
         sleep_duration = max(4 * 3600, 0)  # Ensure at least 4 hours
-        logging.info(f"Sleeping for {sleep_duration // 3600} hours...")
+        print(f"[INFO] Sleeping for {sleep_duration // 3600} hours...\n")
         await asyncio.sleep(sleep_duration)
 
 
@@ -84,6 +91,7 @@ def save_signals_to_clickhouse(signals):
             ORDER BY timestamp
         """
         client.command(create_table_query)
+        print("[INFO] Trading signals table created or verified in ClickHouse.")
 
         logging.info("Storing trading signals in ClickHouse...")
         for signal in signals:
@@ -94,11 +102,13 @@ def save_signals_to_clickhouse(signals):
                     VALUES (NOW(), '{signal['Pair']}', '{signal['Signal']}', {signal['Entry']}, {signal['SL']}, {signal['TP']},
                             {signal['Risk Amount']}, {signal['Position Size']}, {signal['Safe Zone Top']}, {signal['Safe Zone Bottom']})
                 """)
-                logging.info(f"Signal stored: {signal}")
+                print(f"[INFO] Signal stored: {signal}")
             except Exception as e:
+                print(f"[ERROR] Failed to store signal: {signal}. Error: {e}")
                 logging.error(f"Failed to store signal: {signal}. Error: {e}")
 
     except Exception as e:
+        print(f"[ERROR] Error setting up ClickHouse table or storing signals: {e}")
         logging.error(f"Error setting up ClickHouse table or storing signals: {e}")
 
 
@@ -110,16 +120,18 @@ async def prepare_trading(signals):
         strategy = "malaysian"
         local_symbol = "frxEURUSD"
 
+        print("[INFO] Preparing trading...")
         result = client.query(f"""
             SELECT token FROM userdetails 
             WHERE strategy = '{strategy}' AND trading = true
         """)
 
         if not result.result_set:
-            logging.warning("No active tokens found for strategy.")
+            print("[WARNING] No active tokens found for the specified strategy.")
             return
 
         tokens = [row[0] for row in result.result_set]
+        print(f"[INFO] Found tokens for trading: {tokens}")
 
         for signal in signals:
             for token in tokens:
@@ -130,19 +142,27 @@ async def prepare_trading(signals):
                 symbols = [row[0] for row in symbols_result.result_set]
 
                 if local_symbol in symbols:
+                    print(f"[INFO] Token {token} is linked to symbol {local_symbol}. Calculating risk...")
                     risk_amount = await calculate_risk(token)
+                    print(f"[INFO] Risk amount calculated: {risk_amount}")
+
                     if risk_amount > 0:
                         if signal['Signal'] == "Buy":
-                            logging.info(f"Placing BUY trade for {local_symbol}")
+                            print(f"[INFO] Placing BUY trade for {local_symbol} with risk amount {risk_amount}")
                             executeTrade(token, risk_amount, signal['TP'], signal['SL'], local_symbol)
+                            print("[INFO] BUY trade executed successfully.")
                         elif signal['Signal'] == "Sell":
-                            logging.info(f"Placing SELL trade for {local_symbol}")
+                            print(f"[INFO] Placing SELL trade for {local_symbol} with risk amount {risk_amount}")
                             executeTrade(token, risk_amount, signal['TP'], signal['SL'], local_symbol)
+                            print("[INFO] SELL trade executed successfully.")
                         else:
-                            logging.warning("Unknown signal type.")
+                            print("[WARNING] Unknown signal type encountered.")
                     else:
-                        logging.warning(f"Risk amount too low for token {token}, skipping trade.")
+                        print(f"[WARNING] Risk amount too low for token {token}. Trade skipped.")
     except Exception as e:
+        print(f"[ERROR] Error in prepare_trading: {e}")
         logging.error(f"Error in prepare_trading: {e}")
+
+
 if __name__ == "__main__":
     asyncio.run(main())
