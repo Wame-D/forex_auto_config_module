@@ -167,7 +167,6 @@ async def prepare_trading(signals):
 
                     for sym in symbolss:
                         symbol = sym[0]
-                        print(symbol)
 
                         if  (local_symbol == symbol):
                             # calculate risk analysis and position size
@@ -182,6 +181,7 @@ async def prepare_trading(signals):
                                     executeTrade(token, risk_amount, s['TP'], s['SL'], symbol )
                                     print('___________________________ TRADE PLACED________________________________________') 
                                 elif s['Signal'] == "Sell":
+                                    print("the signal is a buy")
                                     # executeTrade(token, risk_amount, s['TP'], s['SL'], symbol )
                                     
                                 else:
