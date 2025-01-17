@@ -49,9 +49,8 @@ async def main():
             print("[INFO] Data aggregation complete.")
 
             # Analyze strategy and generate signals
-            print("[INFO] Analyzing trading strategy...")
-            #strategy_type = "Malaysian" 
-            strategy_type = "Moving Average" 
+            print("[INFO] Analyzing trading strategy...")    
+            strategy_type = ["Malaysian", "Moving Average"]
             signals = analysis(df_4h,df_30m, df_15m, strategy_type)
 
             if signals:

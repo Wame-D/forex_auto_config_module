@@ -195,10 +195,9 @@ def analyze_malaysian_strategy(
     except Exception as e:
         logger.exception("Error during strategy analysis.")
         return []
-
 def analysis(
     df_4h: List[Dict[str, Any]], df_30m: List[Dict[str, Any]], 
-    df_15m: List[Dict[str, Any]], strategy_type: str
+    df_15m: List[Dict[str, Any]], strategy_type: List[str]
 ) -> List[Dict[str, Any]]:
     """
     Generate trading signals based on the selected strategies.
@@ -206,18 +205,19 @@ def analysis(
     :param df_4h: List of dicts containing data for the 4-hour time frame.
     :param df_30m: List of dicts containing data for the 30-minute time frame.
     :param df_15m: List of dicts containing data for the 15-minute time frame.
-    :param strategy_types: List of strategy types to use for signal generation.
+    :param strategy_type: List of strategy types to use for signal generation (e.g., ["Malaysian", "Moving Average"]).
     :return: List of trading signals based on the selected strategies.
     """
     signals = []
 
-    if strategy_type == "Malaysian" or strategy_type == "Both":
+    if "Malaysian" in strategy_type:
         malaysian_signals = analyze_malaysian_strategy(df_4h, df_15m)
+        print("Malaysian Strategy Signals:", malaysian_signals)  # Debugging statement
         signals.extend(malaysian_signals)
 
-    # Assuming moving_average_strategy is defined elsewhere.
-    if strategy_type == "Moving Average" or strategy_type == "Both":
+    if "Moving Average" in strategy_type:
         moving_avg_signals = moving_average_strategy(df_4h, df_30m)
+        print("Moving Average Strategy Signals:", moving_avg_signals)  # Debugging statement
         signals.extend(moving_avg_signals)
 
     return signals

@@ -133,8 +133,8 @@ def check_candlestick_pattern(candle: Dict[str, Any], prev_candle: Dict[str, Any
     return "No Pattern"
 
 def moving_average_strategy(candles_4h: List[Dict[str, Any]], candles_30m: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Implements the enhanced forex trading strategy based on trend, volatility, and momentum principles."""
-    print_info("Starting Enhanced Forex Trading Strategy...")
+    """Implements the moving_average_strategy based on trend, volatility, and momentum principles."""
+    print_info("Starting moving_average_strategy...")
     signals = []
 
     try:
