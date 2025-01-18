@@ -6,7 +6,7 @@ from forex.clickhouse.connection import get_clickhouse_client
 # Initialize ClickHouse client
 client = get_clickhouse_client()
 
-# saving user tocken to the database and strategy
+# Saving user token to the database and strategy
 @csrf_exempt
 def save_token_and_strategy(request):
     if request.method == 'POST':
@@ -14,33 +14,50 @@ def save_token_and_strategy(request):
             # Parse JSON data from the request
             data = json.loads(request.body)
             token = data.get('token')
+            email = data.get('email')
             strategy = data.get('strategy')
             trading = data.get('trading')
 
             # Validate input
-            if not token or not strategy:
-                return JsonResponse({"error": "Token and strategy are required"}, status=400)
-           
-            # checking if the user already have a strategy
+            if not token or not strategy or not email:
+                return JsonResponse({"error": "Email, token, and strategy are required"}, status=400)
+
+            # Check if the user exists in the database
             result = client.query(f"""
-                SELECT COUNT(*)
-                FROM userdetails 
-                WHERE token = '{token}'
+                SELECT token, COUNT(*)
+                FROM userdetails
+                WHERE email = '{email}'
+                GROUP BY token
             """)
-            row_data = result.result_set[0]
-            count = row_data[0]
+            row_data = result.result_set
+            count = len(row_data)
 
             if count > 0:
-                # change only the strategy
-                client.command(f"""
-                    ALTER TABLE userdetails UPDATE strategy = '{strategy}'
-                    WHERE token = '{token}'
-                """)
+                # Retrieve the current token
+                stored_token = row_data[0][0]
+
+                # Update only if the token is different or strategy has changed
+                if stored_token != token:
+                    client.command(f"""
+                        ALTER TABLE userdetails UPDATE token = '{token}', strategy = '{strategy}'
+                        WHERE email = '{email}'
+                    """)
+
+                    client.command(f"""
+                        ALTER TABLE symbols UPDATE token = '{token}'
+                        WHERE email = '{email}'
+                    """)
+                else:
+                    # Update the strategy alone if the token hasn't changed
+                    client.command(f"""
+                        ALTER TABLE userdetails UPDATE strategy = '{strategy}'
+                        WHERE email = '{email}'
+                    """)
             else:
-                # Save data to ClickHouse
+                # Insert new data if the user doesn't exist
                 client.command(f"""
-                    INSERT INTO userdetails (token, strategy, trading, created_at) 
-                    VALUES ('{token}', '{strategy}', '{trading}', NOW())
+                    INSERT INTO userdetails (email, token, strategy, trading, created_at)
+                    VALUES ('{email}', '{token}', '{strategy}', '{trading}', NOW())
                 """)
 
             return JsonResponse({"message": "Data saved successfully"}, status=201)
@@ -58,19 +75,20 @@ def save_symbols(request):
             # Parse JSON data from the request
             data = json.loads(request.body)
             token = data.get('token')
+            email = data.get('email')
             symbols = data.get('symbols')  # Expecting an array of symbols
 
             # Validate input
-            if not token or not symbols:
-                return JsonResponse({"error": "Token and symbols are required"}, status=400)
+            if not email or not symbols:
+                return JsonResponse({"error": "email and symbols are required"}, status=400)
             if not isinstance(symbols, list):
                 return JsonResponse({"error": "Symbols must be a list"}, status=400)
 
             # Prepare and execute bulk insertion
             for symbol in symbols:
                 client.command(f"""
-                    INSERT INTO symbols (token, symbol, created_at) 
-                    VALUES ('{token}', '{symbol}', NOW())
+                    INSERT INTO symbols (email, token, symbol, created_at) 
+                    VALUES ('{email}', '{token}', '{symbol}', NOW())
                  """)
 
             return JsonResponse({"message": "Data saved successfully"}, status=201)
@@ -87,23 +105,23 @@ def update_trading_status(request):
         try:
             # Parse JSON data from the request
             data = json.loads(request.body)
-            token = data.get('token')
+            email = data.get('email')
             trading = data.get('trading')
 
             # Validate input
-            if not token or trading is None:
-                return JsonResponse({"error": "Token and trading status are required"}, status=400)
+            if not email or trading is None:
+                return JsonResponse({"error": "Token, email and trading status are required"}, status=400)
 
             # Update the trading status in ClickHouse
             if trading:
                 client.command(f"""
                 ALTER TABLE userdetails UPDATE trading = {trading}, started_at = NOW()
-                WHERE token = '{token}'
+                WHERE email = '{email}'
                 """)
             else:
                 client.command(f"""
                     ALTER TABLE userdetails UPDATE trading = {trading}
-                    WHERE token = '{token}'
+                    WHERE email = '{email}'
                 """)
 
             return JsonResponse({"message": "Trading status updated successfully"}, status=200)
@@ -120,16 +138,16 @@ def get_start_time(request):
         try:
             # Parse JSON data from the request
             data = json.loads(request.body)
-            token = data.get('token')
+            email = data.get('email')
 
-            if not token:
-                return JsonResponse({"error": "Token is required"}, status=400)
+            if not email:
+                return JsonResponse({"error": "email is required"}, status=400)
 
             # Fetch the start_time from the database
             result = client.query(f"""
                 SELECT started_at, trading
                 FROM userdetails 
-                WHERE token = '{token}'
+                WHERE email = '{email}'
             """)
             
             if result:
@@ -153,16 +171,16 @@ def get_strategy(request):
         try:
             # Parse JSON data from the request
             data = json.loads(request.body)
-            token = data.get('token')
+            email = data.get('email')
 
-            if not token:
-                return JsonResponse({"error": "Token is required"}, status=400)
+            if not email:
+                return JsonResponse({"error": "email is required"}, status=400)
 
             # Fetch the strategy from the database
             result = client.query(f"""
                 SELECT strategy
                 FROM userdetails 
-                WHERE token = '{token}'
+                WHERE email = '{email}'
             """)
             
             if result:
@@ -184,16 +202,16 @@ def get_symbol(request):
         try:
             # Parse JSON data from the request
             data = json.loads(request.body)
-            token = data.get('token')
+            email = data.get('email')
 
-            if not token:
-                return JsonResponse({"error": "Token is required"}, status=400)
+            if not email:
+                return JsonResponse({"error": "email is required"}, status=400)
 
             # Fetch the strategy from the database
             result = client.query(f"""
                 SELECT symbol
                 FROM symbols
-                WHERE token = '{token}'
+                WHERE email = '{email}'
             """)
             if result:
                 symbol = result.result_set
@@ -213,15 +231,15 @@ def delete_symbol(request):
         try:
             # Parse JSON data from the request
             data = json.loads(request.body)
-            token = data.get('token')
+            email = data.get('email')
             symbol = data.get('index')
 
-            if not token:
-                return JsonResponse({"error": "Token is required"}, status=400)
+            if not email:
+                return JsonResponse({"error": "email is required"}, status=400)
 
             # dELETING SYMBOLS FROM THE DATABASE from the database
             result = client.query(f"""
-                DELETE FROM symbols WHERE symbol = '{symbol}' AND token = '{token}'
+                DELETE FROM symbols WHERE symbol = '{symbol}' AND email = '{email}'
             """)
             if result:
                 symbol = result.result_set
