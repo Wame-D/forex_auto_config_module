@@ -16,12 +16,23 @@ from bot_settings.views import save_risks
 from bot_settings.views import profit_and_loss_margin
 from bot_settings.views import get_risks
 from bot_settings.views import get_profit_and_loss_margin
+from forex.swagger import schema_view
+
+from django.urls import path, include
+from rest_framework import permissions
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
+
 
 urlpatterns = [
+    #swagger
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=2), name='schema-swagger-ui'),
+    path('doc/', schema_view.with_ui('redoc', cache_timeout=0), name='schema-redoc'), 
+
     path('admin/', admin.site.urls),
     path('authorize/', authorize_user, name='authorize_user'),
     path('generate-guest-token/', get_guest_token, name='generate_guest_token'),
-    path('trade/', include('trade.routes')),   
+    # path('trade/', include('trade.routes')),   
 
     # bot setings
     path('save-strategy/',save_token_and_strategy, name='save_token_and_strategy' ),
@@ -35,5 +46,6 @@ urlpatterns = [
     path('get_risks/', get_risks, name='get_risks' ),
     path('save_profit_and_loss/', profit_and_loss_margin, name='profit_and_loss_margin' ),
     path('get_profit_and_loss/', get_profit_and_loss_margin, name='get_profit_and_loss_margin' ),
-   
+
+
 ]

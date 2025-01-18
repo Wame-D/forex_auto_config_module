@@ -120,8 +120,7 @@ async def prepare_trading(signals):
 
         print("[INFO] Preparing trading...")
         result = client.query(f"""
-            SELECT token FROM userdetails 
-            WHERE strategy = '{strategy}' AND trading = true
+           SELECT token FROM userdetails WHERE strategy = '{strategy}' AND trading = 'true'
         """)
 
         if not result.result_set:

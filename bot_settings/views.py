@@ -6,10 +6,33 @@ from datetime import date
 
 # Initialize ClickHouse client
 client = get_clickhouse_client()
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
 
+# Define your parameters for documentation
+token_param = openapi.Parameter('token', openapi.IN_BODY, description="Authentication token", type=openapi.TYPE_STRING)
+email_param = openapi.Parameter('email', openapi.IN_BODY, description="User's email", type=openapi.TYPE_STRING)
+strategy_param = openapi.Parameter('strategy', openapi.IN_BODY, description="Trading strategy", type=openapi.TYPE_STRING)
+trading_param = openapi.Parameter('trading', openapi.IN_BODY, description="Trading details", type=openapi.TYPE_BOOLEAN)
+
+@swagger_auto_schema(method='post', 
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'token': openapi.Schema(type=openapi.TYPE_STRING),
+            'email': openapi.Schema(type=openapi.TYPE_STRING),
+            'strategy': openapi.Schema(type=openapi.TYPE_STRING),
+            'trading': openapi.Schema(type=openapi.TYPE_BOOLEAN)
+        }
+    )
+)
+@api_view(['POST'])
 # Saving user token to the database and strategy
 @csrf_exempt
 def save_token_and_strategy(request):
+    name = request.query_params.get('name', None)
     if request.method == 'POST':
         try:
 
@@ -82,6 +105,16 @@ def save_token_and_strategy(request):
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
 # Updating the trading status of the user
+@swagger_auto_schema(method='post', 
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'email': openapi.Schema(type=openapi.TYPE_STRING),
+            'trading': openapi.Schema(type=openapi.TYPE_BOOLEAN)
+        }
+    )
+)
+@api_view(['POST'])
 @csrf_exempt
 def update_trading_status(request):
     if request.method == 'POST':
@@ -115,6 +148,15 @@ def update_trading_status(request):
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
 # Getting the time the user allowed the bot to start trading
+@swagger_auto_schema(method='post', 
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'email': openapi.Schema(type=openapi.TYPE_STRING),
+        }
+    )
+)
+@api_view(['POST'])
 @csrf_exempt
 def get_start_time(request):
     if request.method == 'POST':
@@ -148,6 +190,15 @@ def get_start_time(request):
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
 # Getting the strategy that the user selected
+@swagger_auto_schema(method='post', 
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'email': openapi.Schema(type=openapi.TYPE_STRING),
+        }
+    )
+)
+@api_view(['POST'])
 @csrf_exempt
 def get_strategy(request):
     if request.method == 'POST':
@@ -187,6 +238,17 @@ getting user symbols
 
 """
 # Saving symbols 
+@swagger_auto_schema(method='post', 
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'email': openapi.Schema(type=openapi.TYPE_STRING),
+            'token': openapi.Schema(type=openapi.TYPE_STRING),
+            'symbol': openapi.Schema(type=openapi.TYPE_STRING),
+        }
+    )
+)
+@api_view(['POST'])
 @csrf_exempt
 def save_symbols(request):
     if request.method == 'POST':
@@ -228,6 +290,15 @@ def save_symbols(request):
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
 # Getting symbols that the user selected
+@swagger_auto_schema(method='post', 
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'email': openapi.Schema(type=openapi.TYPE_STRING),
+        }
+    )
+)
+@api_view(['POST'])
 @csrf_exempt
 def get_symbol(request):
     if request.method == 'POST':
@@ -257,6 +328,16 @@ def get_symbol(request):
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
 # dELETING SYMBOLS FROM THE DATABASE from the database
+@swagger_auto_schema(method='post', 
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'email': openapi.Schema(type=openapi.TYPE_STRING),
+            'symbol': openapi.Schema(type=openapi.TYPE_STRING),
+        }
+    )
+)
+@api_view(['POST'])
 @csrf_exempt
 def delete_symbol(request):
     if request.method == 'POST':
@@ -288,7 +369,22 @@ def delete_symbol(request):
     Risk analysis setting setthings
 
     per trade risk and per day risk
+    
 """
+@swagger_auto_schema(method='post', 
+    operation_id='Save risk percentage', 
+    description="### Save Risk Percentage\nThis endpoint is used to save the risk percentage settings for trading strategies." ,
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        
+        properties={
+            'email': openapi.Schema(type=openapi.TYPE_STRING),
+            'per_trade ': openapi.Schema(type=openapi.TYPE_NUMBER),
+            'per_day ': openapi.Schema(type=openapi.TYPE_NUMBER),
+        }
+    )
+)
+@api_view(['POST'])
 @csrf_exempt
 def save_risks(request):
     if request.method == 'POST':
@@ -370,6 +466,15 @@ def save_risks(request):
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
 # getting risk data from database
+@swagger_auto_schema(method='post', 
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'email': openapi.Schema(type=openapi.TYPE_STRING),
+        }
+    )
+)
+@api_view(['POST'])
 @csrf_exempt
 def get_risks(request):
     if request.method == 'POST':
@@ -398,7 +503,6 @@ def get_risks(request):
 
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
-
 """
     profit and loss marging 
 
@@ -408,6 +512,30 @@ def get_risks(request):
 
     maximum win per day and overall
 """
+# Define parameters for swagger documentation
+email_param = openapi.Parameter('email', openapi.IN_BODY, description="User's email", type=openapi.TYPE_STRING)
+max_loss_per_day_param = openapi.Parameter('max_loss_per_day', openapi.IN_BODY, description="Maximum loss per day", type=openapi.TYPE_NUMBER)
+overall_loss_param = openapi.Parameter('overall_loss', openapi.IN_BODY, description="Overall loss", type=openapi.TYPE_NUMBER)
+max_win_per_day_param = openapi.Parameter('max_win_per_day', openapi.IN_BODY, description="Maximum win per day", type=openapi.TYPE_NUMBER)
+overall_win_param = openapi.Parameter('overall_win', openapi.IN_BODY, description="Overall win", type=openapi.TYPE_NUMBER)
+start_date_param = openapi.Parameter('start_date', openapi.IN_BODY, description="Start date of the trading", type=openapi.TYPE_STRING)
+stop_date_param = openapi.Parameter('stop_date', openapi.IN_BODY, description="Stop date of the trading", type=openapi.TYPE_STRING)
+
+@swagger_auto_schema(method='post', 
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'email': openapi.Schema(type=openapi.TYPE_STRING),
+            'max_loss_per_day': openapi.Schema(type=openapi.TYPE_NUMBER),
+            'overall_loss': openapi.Schema(type=openapi.TYPE_NUMBER),
+            'max_win_per_day': openapi.Schema(type=openapi.TYPE_NUMBER),
+            'overall_win': openapi.Schema(type=openapi.TYPE_NUMBER),
+            'start_date': openapi.Schema(type=openapi.TYPE_STRING),
+            'stop_date': openapi.Schema(type=openapi.TYPE_STRING)
+        }
+    )
+)
+@api_view(['POST'])
 @csrf_exempt
 def profit_and_loss_margin(request):
     if request.method == 'POST':
@@ -415,7 +543,7 @@ def profit_and_loss_margin(request):
             # Ensure the table exists
             client.command("""
                 CREATE TABLE IF NOT EXISTS start_stop_table (
-                    email String,
+                    email String PRIMARY KEY,
                     start_date DateTime,
                     stop_date DateTime,
                     loss_per_day Float32,
@@ -427,7 +555,8 @@ def profit_and_loss_margin(request):
                 ORDER BY (email);
             """)
 
-            # Parse JSON data from the request
+
+            #Parse JSON data from the request
             data = json.loads(request.body)
 
             email = data.get('email')
@@ -444,33 +573,26 @@ def profit_and_loss_margin(request):
                     "error": "Email, start_date, loss_per_day, overall_loss, win_per_day, and overall_win are required"
                 }, status=400)
 
-            # Parse and validate the start_date
-            try:
-                print(start_date)
-                stop_date =  date.fromisoformat( stop_date)
-                start_date =  date.fromisoformat( start_date)
-            except ValueError:
-                return JsonResponse({"error": "Invalid start_date format. Use ISO 8601 format (e.g., '2025-01-18T00:00:00')."}, status=400)
-
             # Fetch existing details for the user
-            result = client.command(
-                """
-                SELECT start_date, stop_date, loss_per_day, overall_loss, win_per_day, overall_win
-                FROM start_stop_table
-                WHERE email = %(email)s
-                """,
-                {"email": email}
-            )
-           
-           changes = {}
+            result = client.query(f"""
+            SELECT start_date, stop_date, loss_per_day, overall_loss, win_per_day, overall_win
+            FROM start_stop_table
+            WHERE email = '{email}'
+            """)
+            print(result.result_set)
+            changes = {}
 
-           if result:
-                row_data = result.result_set
-                exists = len(row_data) > 0
+            if result :
+                if result.result_set:
+                    row_data = result.result_set[0]
 
-                if exists:
                     # Extract the current settings
-                    existing_start_date, existing_loss_per_day, existing_overall_loss, existing_win_per_day, existing_overall_win = row_data[0]
+                    existing_start_date = row_data[0]
+                    existing_stop_date = row_data[1]
+                    existing_loss_per_day = row_data[2]
+                    existing_overall_loss = row_data[3] 
+                    existing_win_per_day = row_data[4]
+                    existing_overall_win = row_data[5]
 
                     # Compare and update if necessary
                     if existing_start_date != start_date:
@@ -517,19 +639,10 @@ def profit_and_loss_margin(request):
                         )
                 else:
                     # Insert new details for the user if they don't exist
-                    client.command(
+                    client.query(f"""
+                        INSERT INTO start_stop_table (email, start_date, stop_date, loss_per_day, overall_loss, win_per_day, overall_win, created_at)
+                        VALUES ('{email}', '{start_date}', '{stop_date}', '{loss_per_day}', '{overall_loss}', '{win_per_day}', '{overall_win}', NOW())
                         """
-                        INSERT INTO start_stop_table (email, start_date, loss_per_day, overall_loss, win_per_day, overall_win, created_at)
-                        VALUES (%(email)s, %(start_date)s, %(loss_per_day)s, %(overall_loss)s, %(win_per_day)s, %(overall_win)s, NOW())
-                        """,
-                        {
-                            "email": email,
-                            "start_date": start_date,
-                            "loss_per_day": loss_per_day,
-                            "overall_loss": overall_loss,
-                            "win_per_day": win_per_day,
-                            "overall_win": overall_win
-                        }
                     )
                     changes["new_entry"] = {
                         "start_date": str(start_date),
@@ -554,6 +667,15 @@ def profit_and_loss_margin(request):
 
 # getting profit and loss data data from database
 @csrf_exempt
+@swagger_auto_schema(method='post', 
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'email': openapi.Schema(type=openapi.TYPE_STRING),
+        }
+    )
+)
+@api_view(['POST'])
 def get_profit_and_loss_margin(request):
     if request.method == 'POST':
         try:
@@ -564,20 +686,17 @@ def get_profit_and_loss_margin(request):
             if not email:
                 return JsonResponse({"error": "email is required"}, status=400)
 
-            # Fetch the strategy from the database
-           # Fetch existing details for the user
-            result = client.command(
-                """
+            result = client.query(f"""
                 SELECT start_date, stop_date, loss_per_day, overall_loss, win_per_day, overall_win
                 FROM start_stop_table
-                WHERE email = %(email)s
-                """,
-                {"email": email}
-            )
+                WHERE email = '{email}'
+            """)
+
+            print(result.result_set)
             
-            if result:
+            if result :
                 row_data = result.result_set
-                return JsonResponse({"data": row_datal}, status=200)
+                return JsonResponse({"data": row_data}, status=200)
             else:
                 return JsonResponse({"error": "email not found"}, status=404)
 

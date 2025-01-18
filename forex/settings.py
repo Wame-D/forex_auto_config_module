@@ -41,7 +41,8 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'apache_superset',
-    'trade'
+    'trade',
+    'drf_yasg',
 ]
 
 MIDDLEWARE = [
@@ -70,7 +71,12 @@ CORS_ALLOW_HEADERS= [
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        # other options here
+        'DIRS': [
+            os.path.join(BASE_DIR, 'templates'),
+            # Add drf-yasg's template path
+            os.path.join(BASE_DIR, 'myvenv/lib/python3.12/site-packages/drf_yasg/templates'),
+        ],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -82,6 +88,24 @@ TEMPLATES = [
         },
     },
 ]
+
+# SWAGGER_SETTINGS = {
+#     'SECURITY_DEFINITIONS': {
+#         'Bearer': {
+#             'type': 'apiKey',
+#             'name': 'Authorization',
+#             'in': 'header'
+#         }
+#     },
+#     'USE_SESSION_AUTH': False,
+# }
+SWAGGER_SETTINGS = {
+    'SECURITY_DEFINITIONS': {
+        'Basic': {
+            'type': 'basic'
+        }
+    }
+}
 
 WSGI_APPLICATION = 'forex.wsgi.application'
 
@@ -132,7 +156,9 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 # STATIC_URL = 'static/'
-STATIC_URL = 'static/'
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+STATIC_URL = 'staticfiles/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 

@@ -4,11 +4,9 @@ from deriv_api import DerivAPI
 from django.views.decorators.csrf import csrf_exempt
 import json
 # Initialize DerivAPI client
-
-
-app_id = 65102
 @csrf_exempt
 async def authorize_user(request):
+    app_id = 65102
     if request.method == "POST":
         try:
             data = json.loads(request.body)

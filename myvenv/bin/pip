@@ -1,4 +1,4 @@
-#!/home/wame/Projects/forex/myvenv/bin/python3
+#!/home/wame/Projects/forex/myvenv/bin/python
 # -*- coding: utf-8 -*-
 import re
 import sys
