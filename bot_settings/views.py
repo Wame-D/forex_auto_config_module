@@ -251,3 +251,225 @@ def delete_symbol(request):
             return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
+
+""" 
+    Risk analysis setting setthings
+
+    per trade risk and per day risk
+"""
+@csrf_exempt
+def save_risks(request):
+    if request.method == 'POST':
+        try:
+            # Ensure the table exists
+            client.command("""
+                CREATE TABLE IF NOT EXISTS risk_table (
+                    email String,
+                    per_trade Float32,
+                    per_day Float32,
+                    created_at DateTime
+                ) ENGINE = MergeTree()
+                ORDER BY (email);
+            """)
+
+            # Parse JSON data from the request
+            data = json.loads(request.body)
+            day = data.get('day')
+            email = data.get('email')
+            trade = data.get('trade')
+
+            # Validate input
+            if not email or day is None:
+                return JsonResponse({"error": "Email, day, and trade risks are required"}, status=400)
+            
+            if trade is None:
+                trade = 1
+                # setting default risk per trade to 1
+
+            # Fetch existing risks for the user
+            result = client.query(
+                "SELECT per_trade, per_day FROM risk_table WHERE email = %(email)s",
+                {"email": email}
+            )
+            row_data = result.result_set
+            exists = len(row_data) > 0
+
+            changes = {}
+
+            if exists:
+                # Extract the current risks
+                existing_trade, existing_day = row_data[0]
+
+                # Compare and update if necessary
+                if float(existing_trade) != float(trade):
+                    changes["per_trade"] = {"old": existing_trade, "new": trade}
+                    client.command(
+                        "ALTER TABLE risk_table UPDATE per_trade = %(trade)s WHERE email = %(email)s",
+                        {"trade": trade, "email": email}
+                    )
+
+                if float(existing_day) != float(day):
+                    changes["per_day"] = {"old": existing_day, "new": day}
+                    client.command(
+                        "ALTER TABLE risk_table UPDATE per_day = %(day)s WHERE email = %(email)s",
+                        {"day": day, "email": email}
+                    )
+            else:
+                # Insert new risks for the user if they don't exist
+                client.command(
+                    """
+                    INSERT INTO risk_table (email, per_trade, per_day, created_at)
+                    VALUES (%(email)s, %(trade)s, %(day)s, NOW())
+                    """,
+                    {"email": email, "trade": trade, "day": day}
+                )
+                changes["new_entry"] = {"per_trade": trade, "per_day": day}
+
+            if changes:
+                # Notify the user about what has changed
+                return JsonResponse({"message": "Risks updated successfully", "changes": changes}, status=200)
+
+            return JsonResponse({"message": "No changes were made, risks are already up to date"}, status=200)
+
+        except Exception as e:
+            # Handle server errors
+            return JsonResponse({"error": f"Internal server error: {str(e)}"}, status=500)
+
+    return JsonResponse({"error": "Invalid HTTP method"}, status=405)
+
+"""
+    profit and loss marging 
+
+    saving time frame when the bot shall stop executing 
+    maximun loss per day
+    and overall
+
+    maximum win per day and overall
+"""
+@csrf_exempt
+def profit_and_loss_margin(request):
+    if request.method == 'POST':
+        try:
+            # Ensure the table exists
+            client.command("""
+                CREATE TABLE IF NOT EXISTS profit_loss_table (
+                    email String,
+                    timeframe DateTime,
+                    loss_per_day Float32,
+                    overall_loss Float32,
+                    win_per_day Float32,
+                    overall_win Float32,
+                    created_at DateTime
+                ) ENGINE = MergeTree()
+                ORDER BY (email);
+            """)
+
+            # Parse JSON data from the request
+            data = json.loads(request.body)
+            email = data.get('email')
+            timeframe = data.get('timeframe')  # Expecting ISO 8601 format or valid datetime string
+            loss_per_day = data.get('loss_per_day')
+            overall_loss = data.get('overall_loss')
+            win_per_day = data.get('win_per_day')
+            overall_win = data.get('overall_win')
+
+            # Validate input
+            if not email or not timeframe or loss_per_day is None or overall_loss is None or win_per_day is None or overall_win is None:
+                return JsonResponse({
+                    "error": "Email, timeframe, loss_per_day, overall_loss, win_per_day, and overall_win are required"
+                }, status=400)
+
+            # Parse and validate the timeframe
+            try:
+                timeframe = datetime.fromisoformat(timeframe)
+            except ValueError:
+                return JsonResponse({"error": "Invalid timeframe format. Use ISO 8601 format (e.g., '2025-01-18T00:00:00')."}, status=400)
+
+            # Fetch existing details for the user
+            result = client.command(
+                """
+                SELECT timeframe, loss_per_day, overall_loss, win_per_day, overall_win
+                FROM profit_loss_table
+                WHERE email = %(email)s
+                """,
+                {"email": email}
+            )
+            row_data = result.result_set
+            exists = len(row_data) > 0
+
+            changes = {}
+
+            if exists:
+                # Extract the current settings
+                existing_timeframe, existing_loss_per_day, existing_overall_loss, existing_win_per_day, existing_overall_win = row_data[0]
+
+                # Compare and update if necessary
+                if existing_timeframe != timeframe:
+                    changes["timeframe"] = {"old": str(existing_timeframe), "new": str(timeframe)}
+                    client.command(
+                        "ALTER TABLE profit_loss_table UPDATE timeframe = %(timeframe)s WHERE email = %(email)s",
+                        {"timeframe": timeframe, "email": email}
+                    )
+
+                if float(existing_loss_per_day) != float(loss_per_day):
+                    changes["loss_per_day"] = {"old": existing_loss_per_day, "new": loss_per_day}
+                    client.command(
+                        "ALTER TABLE profit_loss_table UPDATE loss_per_day = %(loss_per_day)s WHERE email = %(email)s",
+                        {"loss_per_day": loss_per_day, "email": email}
+                    )
+
+                if float(existing_overall_loss) != float(overall_loss):
+                    changes["overall_loss"] = {"old": existing_overall_loss, "new": overall_loss}
+                    client.command(
+                        "ALTER TABLE profit_loss_table UPDATE overall_loss = %(overall_loss)s WHERE email = %(email)s",
+                        {"overall_loss": overall_loss, "email": email}
+                    )
+
+                if float(existing_win_per_day) != float(win_per_day):
+                    changes["win_per_day"] = {"old": existing_win_per_day, "new": win_per_day}
+                    client.command(
+                        "ALTER TABLE profit_loss_table UPDATE win_per_day = %(win_per_day)s WHERE email = %(email)s",
+                        {"win_per_day": win_per_day, "email": email}
+                    )
+
+                if float(existing_overall_win) != float(overall_win):
+                    changes["overall_win"] = {"old": existing_overall_win, "new": overall_win}
+                    client.command(
+                        "ALTER TABLE profit_loss_table UPDATE overall_win = %(overall_win)s WHERE email = %(email)s",
+                        {"overall_win": overall_win, "email": email}
+                    )
+            else:
+                # Insert new details for the user if they don't exist
+                client.command(
+                    """
+                    INSERT INTO profit_loss_table (email, timeframe, loss_per_day, overall_loss, win_per_day, overall_win, created_at)
+                    VALUES (%(email)s, %(timeframe)s, %(loss_per_day)s, %(overall_loss)s, %(win_per_day)s, %(overall_win)s, NOW())
+                    """,
+                    {
+                        "email": email,
+                        "timeframe": timeframe,
+                        "loss_per_day": loss_per_day,
+                        "overall_loss": overall_loss,
+                        "win_per_day": win_per_day,
+                        "overall_win": overall_win
+                    }
+                )
+                changes["new_entry"] = {
+                    "timeframe": str(timeframe),
+                    "loss_per_day": loss_per_day,
+                    "overall_loss": overall_loss,
+                    "win_per_day": win_per_day,
+                    "overall_win": overall_win
+                }
+
+            if changes:
+                # Notify the user about what has changed
+                return JsonResponse({"message": "Profit and loss margins updated successfully", "changes": changes}, status=200)
+
+            return JsonResponse({"message": "No changes were made, settings are already up to date"}, status=200)
+
+        except Exception as e:
+            # Handle server errors
+            return JsonResponse({"error": f"Internal server error: {str(e)}"}, status=500)
+
+    return JsonResponse({"error": "Invalid HTTP method"}, status=405)
