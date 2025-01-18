@@ -1,8 +1,11 @@
 from django.http import JsonResponse
 from django.shortcuts import render
 from websocket import create_connection
+from deriv_api import DerivAPI
+    
 
 import json
+
 
 def send_request(ws, request):
     """Sends a request to the WebSocket connection and returns the response."""
@@ -188,3 +191,31 @@ def fxCloseMultiplierTrade(request):
     except Exception as e:
         print(f"Error closing WebSocket connection: {e}")
         return render(request, "index.html", {"message": f"Error closing WebSocket: {e}"})
+
+
+
+
+
+
+async def subscribe_open_contract(contract_id):
+    try:
+
+        # Initialize DerivAPI instance (replace with your actual API setup)
+        api = DerivAPI({"app_id": "YOUR_APP_ID", "token": "YOUR_API_TOKEN"})
+
+        # Subscribe to the open contract stream
+        source_poc = await api.subscribe({"proposal_open_contract": 1, "contract_id": contract_id})
+
+        # Collect updates
+        updates = []
+        source_poc.subscribe(lambda poc: updates.append(poc))
+
+        # Optionally: Send real-time updates to the client (e.g., WebSocket)
+        # For now, we wait for a few updates and return them
+        await asyncio.sleep(5)  # Collect updates for 5 seconds
+        return JsonResponse({"updates": updates}, status=200)
+
+    except Exception as e:
+        # Handle any errors gracefully
+        return JsonResponse({"error": f"Failed to subscribe to open contract stream: {str(e)}"}, status=500)
+
