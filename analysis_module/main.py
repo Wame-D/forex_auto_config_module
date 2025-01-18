@@ -147,11 +147,11 @@ async def prepare_trading(signals):
                     if risk_amount > 0:
                         if signal['Signal'] == "Buy":
                             print(f"[INFO] Placing BUY trade for {local_symbol} with risk amount {risk_amount}")
-                            executeTrade(token, risk_amount, signal['TP'], signal['SL'], local_symbol)
+                            # executeTrade(token, risk_amount, signal['TP'], signal['SL'], local_symbol)
                             print("[INFO] BUY trade executed successfully.")
                         elif signal['Signal'] == "Sell":
                             print(f"[INFO] Placing SELL trade for {local_symbol} with risk amount {risk_amount}")
-                            executeTrade(token, risk_amount, signal['TP'], signal['SL'], local_symbol)
+                            # executeTrade(token, risk_amount, signal['TP'], signal['SL'], local_symbol)
                             print("[INFO] SELL trade executed successfully.")
                         else:
                             print("[WARNING] Unknown signal type encountered.")

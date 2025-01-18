@@ -2,6 +2,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
 from forex.clickhouse.connection import get_clickhouse_client
+from datetime import date
 
 # Initialize ClickHouse client
 client = get_clickhouse_client()
@@ -11,8 +12,21 @@ client = get_clickhouse_client()
 def save_token_and_strategy(request):
     if request.method == 'POST':
         try:
+
+            client.command("""
+                CREATE TABLE IF NOT EXISTS userdetails (
+                    email String,
+                    token String,
+                    strategy String,
+                    trading String,
+                    created_at DateTime,
+                    started_at DateTime
+                ) ENGINE = MergeTree()
+                ORDER BY (email);
+            """)
             # Parse JSON data from the request
             data = json.loads(request.body)
+
             token = data.get('token')
             email = data.get('email')
             strategy = data.get('strategy')
@@ -59,37 +73,6 @@ def save_token_and_strategy(request):
                     INSERT INTO userdetails (email, token, strategy, trading, created_at)
                     VALUES ('{email}', '{token}', '{strategy}', '{trading}', NOW())
                 """)
-
-            return JsonResponse({"message": "Data saved successfully"}, status=201)
-
-        except Exception as e:
-            return JsonResponse({"error": str(e)}, status=500)
-
-    return JsonResponse({"error": "Invalid HTTP method"}, status=405)
-
-# Saving symbols 
-@csrf_exempt
-def save_symbols(request):
-    if request.method == 'POST':
-        try:
-            # Parse JSON data from the request
-            data = json.loads(request.body)
-            token = data.get('token')
-            email = data.get('email')
-            symbols = data.get('symbols')  # Expecting an array of symbols
-
-            # Validate input
-            if not email or not symbols:
-                return JsonResponse({"error": "email and symbols are required"}, status=400)
-            if not isinstance(symbols, list):
-                return JsonResponse({"error": "Symbols must be a list"}, status=400)
-
-            # Prepare and execute bulk insertion
-            for symbol in symbols:
-                client.command(f"""
-                    INSERT INTO symbols (email, token, symbol, created_at) 
-                    VALUES ('{email}', '{token}', '{symbol}', NOW())
-                 """)
 
             return JsonResponse({"message": "Data saved successfully"}, status=201)
 
@@ -195,6 +178,55 @@ def get_strategy(request):
 
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
+""" 
+user symols settings
+saving saving symbols 
+
+deleting symbols and 
+getting user symbols
+
+"""
+# Saving symbols 
+@csrf_exempt
+def save_symbols(request):
+    if request.method == 'POST':
+        try:
+            client.command("""
+                CREATE TABLE IF NOT EXISTS symbols (
+                    email String,
+                    token String,
+                    symbol String,
+                    created_at DateTime,
+                ) ENGINE = MergeTree()
+                ORDER BY (email);
+            """)
+            # Parse JSON data from the request
+            data = json.loads(request.body)
+            
+            token = data.get('token')
+            email = data.get('email')
+            symbols = data.get('symbols')  # Expecting an array of symbols
+
+            # Validate input
+            if not email or not symbols:
+                return JsonResponse({"error": "email and symbols are required"}, status=400)
+            if not isinstance(symbols, list):
+                return JsonResponse({"error": "Symbols must be a list"}, status=400)
+
+            # Prepare and execute bulk insertion
+            for symbol in symbols:
+                client.command(f"""
+                    INSERT INTO symbols (email, token, symbol, created_at) 
+                    VALUES ('{email}', '{token}', '{symbol}', NOW())
+                 """)
+
+            return JsonResponse({"message": "Data saved successfully"}, status=201)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid HTTP method"}, status=405)
+
 # Getting symbols that the user selected
 @csrf_exempt
 def get_symbol(request):
@@ -274,9 +306,9 @@ def save_risks(request):
 
             # Parse JSON data from the request
             data = json.loads(request.body)
-            day = data.get('day')
+            day = data.get('per_day')
             email = data.get('email')
-            trade = data.get('trade')
+            trade = data.get('per_trade')
 
             # Validate input
             if not email or day is None:
@@ -337,6 +369,36 @@ def save_risks(request):
 
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
+# getting risk data from database
+@csrf_exempt
+def get_risks(request):
+    if request.method == 'POST':
+        try:
+            # Parse JSON data from the request
+            data = json.loads(request.body)
+            email = data.get('email')
+
+            if not email:
+                return JsonResponse({"error": "email is required"}, status=400)
+
+            # Fetch the strategy from the database
+            result = client.query(f"""
+                SELECT per_trade, per_day
+                FROM risk_table
+                WHERE email = '{email}'
+            """)
+            if result:
+                risks = result.result_set[0]
+                return JsonResponse({"risks": risks}, status=200)
+            else:
+                return JsonResponse({"error": "email not found"}, status=404)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid HTTP method"}, status=405)
+
+
 """
     profit and loss marging 
 
@@ -352,9 +414,10 @@ def profit_and_loss_margin(request):
         try:
             # Ensure the table exists
             client.command("""
-                CREATE TABLE IF NOT EXISTS profit_loss_table (
+                CREATE TABLE IF NOT EXISTS start_stop_table (
                     email String,
-                    timeframe DateTime,
+                    start_date DateTime,
+                    stop_date DateTime,
                     loss_per_day Float32,
                     overall_loss Float32,
                     win_per_day Float32,
@@ -366,110 +429,159 @@ def profit_and_loss_margin(request):
 
             # Parse JSON data from the request
             data = json.loads(request.body)
+
             email = data.get('email')
-            timeframe = data.get('timeframe')  # Expecting ISO 8601 format or valid datetime string
-            loss_per_day = data.get('loss_per_day')
+            loss_per_day = data.get('max_loss_per_day')
             overall_loss = data.get('overall_loss')
-            win_per_day = data.get('win_per_day')
+            win_per_day = data.get('max_win_per_day')
             overall_win = data.get('overall_win')
+            start_date = data.get('start_date')
+            stop_date = data.get('stop_date')
 
             # Validate input
-            if not email or not timeframe or loss_per_day is None or overall_loss is None or win_per_day is None or overall_win is None:
+            if not email or not  stop_date or loss_per_day is None or overall_loss is None or win_per_day is None or overall_win is None:
                 return JsonResponse({
-                    "error": "Email, timeframe, loss_per_day, overall_loss, win_per_day, and overall_win are required"
+                    "error": "Email, start_date, loss_per_day, overall_loss, win_per_day, and overall_win are required"
                 }, status=400)
 
-            # Parse and validate the timeframe
+            # Parse and validate the start_date
             try:
-                timeframe = datetime.fromisoformat(timeframe)
+                print(start_date)
+                stop_date =  date.fromisoformat( stop_date)
+                start_date =  date.fromisoformat( start_date)
             except ValueError:
-                return JsonResponse({"error": "Invalid timeframe format. Use ISO 8601 format (e.g., '2025-01-18T00:00:00')."}, status=400)
+                return JsonResponse({"error": "Invalid start_date format. Use ISO 8601 format (e.g., '2025-01-18T00:00:00')."}, status=400)
 
             # Fetch existing details for the user
             result = client.command(
                 """
-                SELECT timeframe, loss_per_day, overall_loss, win_per_day, overall_win
-                FROM profit_loss_table
+                SELECT start_date, stop_date, loss_per_day, overall_loss, win_per_day, overall_win
+                FROM start_stop_table
                 WHERE email = %(email)s
                 """,
                 {"email": email}
             )
-            row_data = result.result_set
-            exists = len(row_data) > 0
+           
+           changes = {}
 
-            changes = {}
+           if result:
+                row_data = result.result_set
+                exists = len(row_data) > 0
 
-            if exists:
-                # Extract the current settings
-                existing_timeframe, existing_loss_per_day, existing_overall_loss, existing_win_per_day, existing_overall_win = row_data[0]
+                if exists:
+                    # Extract the current settings
+                    existing_start_date, existing_loss_per_day, existing_overall_loss, existing_win_per_day, existing_overall_win = row_data[0]
 
-                # Compare and update if necessary
-                if existing_timeframe != timeframe:
-                    changes["timeframe"] = {"old": str(existing_timeframe), "new": str(timeframe)}
+                    # Compare and update if necessary
+                    if existing_start_date != start_date:
+                        changes["start_date"] = {"old": str(existing_start_date), "new": str(start_date)}
+                        client.command(
+                            "ALTER TABLE start_stop_table UPDATE start_date = %(start_date)s WHERE email = %(email)s",
+                            {"start_date": start_date, "email": email}
+                        )
+
+                    if existing_stop_date != stop_date:
+                        changes["stop_date"] = {"old": str(existing_stop_date), "new": str(stop_date)}
+                        client.command(
+                            "ALTER TABLE start_stop_table UPDATE stop_date = %(stop_date)s WHERE email = %(email)s",
+                            {"stop_date": stop_date, "email": email}
+                        )
+
+
+                    if float(existing_loss_per_day) != float(loss_per_day):
+                        changes["loss_per_day"] = {"old": existing_loss_per_day, "new": loss_per_day}
+                        client.command(
+                            "ALTER TABLE start_stop_table UPDATE loss_per_day = %(loss_per_day)s WHERE email = %(email)s",
+                            {"loss_per_day": loss_per_day, "email": email}
+                        )
+
+                    if float(existing_overall_loss) != float(overall_loss):
+                        changes["overall_loss"] = {"old": existing_overall_loss, "new": overall_loss}
+                        client.command(
+                            "ALTER TABLE start_stop_table UPDATE overall_loss = %(overall_loss)s WHERE email = %(email)s",
+                            {"overall_loss": overall_loss, "email": email}
+                        )
+
+                    if float(existing_win_per_day) != float(win_per_day):
+                        changes["win_per_day"] = {"old": existing_win_per_day, "new": win_per_day}
+                        client.command(
+                            "ALTER TABLE start_stop_table UPDATE win_per_day = %(win_per_day)s WHERE email = %(email)s",
+                            {"win_per_day": win_per_day, "email": email}
+                        )
+
+                    if float(existing_overall_win) != float(overall_win):
+                        changes["overall_win"] = {"old": existing_overall_win, "new": overall_win}
+                        client.command(
+                            "ALTER TABLE start_stop_table UPDATE overall_win = %(overall_win)s WHERE email = %(email)s",
+                            {"overall_win": overall_win, "email": email}
+                        )
+                else:
+                    # Insert new details for the user if they don't exist
                     client.command(
-                        "ALTER TABLE profit_loss_table UPDATE timeframe = %(timeframe)s WHERE email = %(email)s",
-                        {"timeframe": timeframe, "email": email}
+                        """
+                        INSERT INTO start_stop_table (email, start_date, loss_per_day, overall_loss, win_per_day, overall_win, created_at)
+                        VALUES (%(email)s, %(start_date)s, %(loss_per_day)s, %(overall_loss)s, %(win_per_day)s, %(overall_win)s, NOW())
+                        """,
+                        {
+                            "email": email,
+                            "start_date": start_date,
+                            "loss_per_day": loss_per_day,
+                            "overall_loss": overall_loss,
+                            "win_per_day": win_per_day,
+                            "overall_win": overall_win
+                        }
                     )
-
-                if float(existing_loss_per_day) != float(loss_per_day):
-                    changes["loss_per_day"] = {"old": existing_loss_per_day, "new": loss_per_day}
-                    client.command(
-                        "ALTER TABLE profit_loss_table UPDATE loss_per_day = %(loss_per_day)s WHERE email = %(email)s",
-                        {"loss_per_day": loss_per_day, "email": email}
-                    )
-
-                if float(existing_overall_loss) != float(overall_loss):
-                    changes["overall_loss"] = {"old": existing_overall_loss, "new": overall_loss}
-                    client.command(
-                        "ALTER TABLE profit_loss_table UPDATE overall_loss = %(overall_loss)s WHERE email = %(email)s",
-                        {"overall_loss": overall_loss, "email": email}
-                    )
-
-                if float(existing_win_per_day) != float(win_per_day):
-                    changes["win_per_day"] = {"old": existing_win_per_day, "new": win_per_day}
-                    client.command(
-                        "ALTER TABLE profit_loss_table UPDATE win_per_day = %(win_per_day)s WHERE email = %(email)s",
-                        {"win_per_day": win_per_day, "email": email}
-                    )
-
-                if float(existing_overall_win) != float(overall_win):
-                    changes["overall_win"] = {"old": existing_overall_win, "new": overall_win}
-                    client.command(
-                        "ALTER TABLE profit_loss_table UPDATE overall_win = %(overall_win)s WHERE email = %(email)s",
-                        {"overall_win": overall_win, "email": email}
-                    )
-            else:
-                # Insert new details for the user if they don't exist
-                client.command(
-                    """
-                    INSERT INTO profit_loss_table (email, timeframe, loss_per_day, overall_loss, win_per_day, overall_win, created_at)
-                    VALUES (%(email)s, %(timeframe)s, %(loss_per_day)s, %(overall_loss)s, %(win_per_day)s, %(overall_win)s, NOW())
-                    """,
-                    {
-                        "email": email,
-                        "timeframe": timeframe,
+                    changes["new_entry"] = {
+                        "start_date": str(start_date),
                         "loss_per_day": loss_per_day,
                         "overall_loss": overall_loss,
                         "win_per_day": win_per_day,
                         "overall_win": overall_win
                     }
-                )
-                changes["new_entry"] = {
-                    "timeframe": str(timeframe),
-                    "loss_per_day": loss_per_day,
-                    "overall_loss": overall_loss,
-                    "win_per_day": win_per_day,
-                    "overall_win": overall_win
-                }
 
-            if changes:
-                # Notify the user about what has changed
-                return JsonResponse({"message": "Profit and loss margins updated successfully", "changes": changes}, status=200)
+                if changes:
+                    # Notify the user about what has changed
+                    return JsonResponse({"message": "Profit and loss margins updated successfully", "changes": changes}, status=200)
 
-            return JsonResponse({"message": "No changes were made, settings are already up to date"}, status=200)
-
+                return JsonResponse({"message": "No changes were made, settings are already up to date"}, status=200)
+            else:
+                return JsonResponse({"message": "No changes were made"}, status=300)
         except Exception as e:
             # Handle server errors
             return JsonResponse({"error": f"Internal server error: {str(e)}"}, status=500)
+
+    return JsonResponse({"error": "Invalid HTTP method"}, status=405)
+
+# getting profit and loss data data from database
+@csrf_exempt
+def get_profit_and_loss_margin(request):
+    if request.method == 'POST':
+        try:
+            # Parse JSON data from the request
+            data = json.loads(request.body)
+            email = data.get('email')
+
+            if not email:
+                return JsonResponse({"error": "email is required"}, status=400)
+
+            # Fetch the strategy from the database
+           # Fetch existing details for the user
+            result = client.command(
+                """
+                SELECT start_date, stop_date, loss_per_day, overall_loss, win_per_day, overall_win
+                FROM start_stop_table
+                WHERE email = %(email)s
+                """,
+                {"email": email}
+            )
+            
+            if result:
+                row_data = result.result_set
+                return JsonResponse({"data": row_datal}, status=200)
+            else:
+                return JsonResponse({"error": "email not found"}, status=404)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)

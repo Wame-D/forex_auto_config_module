@@ -14,6 +14,8 @@ from bot_settings.views import get_symbol
 from bot_settings.views import delete_symbol
 from bot_settings.views import save_risks
 from bot_settings.views import profit_and_loss_margin
+from bot_settings.views import get_risks
+from bot_settings.views import get_profit_and_loss_margin
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -30,6 +32,8 @@ urlpatterns = [
     path('get_symbols/', get_symbol, name='get_symbol' ),
     path('delete_symbols/', delete_symbol, name='delete_symbol' ),
     path('save_risks/', save_risks, name='save_risks' ),
-    path('profit_and_loss_margin/', profit_and_loss_margin, name='profit_and_loss_margin' ),
+    path('get_risks/', get_risks, name='get_risks' ),
+    path('save_profit_and_loss/', profit_and_loss_margin, name='profit_and_loss_margin' ),
+    path('get_profit_and_loss/', get_profit_and_loss_margin, name='get_profit_and_loss_margin' ),
    
 ]
