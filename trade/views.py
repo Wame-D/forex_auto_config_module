@@ -1,5 +1,7 @@
+import asyncio
 from django.http import JsonResponse
 from django.shortcuts import render
+from django.http import HttpResponse
 from websocket import create_connection
 from deriv_api import DerivAPI
     
@@ -17,6 +19,7 @@ def send_request(ws, request):
     return response_data
 
 
+
 # Testing FUNCTION
 def executeTrade(token, lot_size, tp, sl, symbol):
     # Define the proposal details
@@ -25,7 +28,7 @@ def executeTrade(token, lot_size, tp, sl, symbol):
         "token": token, 
         "symbol": symbol,
         "amount": lot_size,  
-        "multiplier": 30, 
+        "multiplier": 100, 
         "take_profit": tp, 
         "stop_loss": sl  
     }
@@ -102,10 +105,13 @@ def fxTradeMultiplier(url, token, symbol, amount, multiplier, take_profit, stop_
         proposal_response = send_request(ws, proposal_request)
         proposal_id = proposal_response.get("proposal", {}).get("id")
         if not proposal_id:
-            return {"message": "Failed to receive proposal ID."}
+            error_code = proposal_response.get("error", {}).get("code", "Unknown error code")
+            error_message = proposal_response.get("error", {}).get("message", "Unknown error message")
+            return {"message": f"Failed to receive proposal ID. Error code: {error_code}, Message: {error_message}"}
         print("Proposal received:", proposal_response)
     except Exception as e:
-        return {"message": f"Failed to request proposal: {e}"}
+        return {"message": f"Failed to request proposal: {str(e)}"}
+
 
     # Execute buy request if proposal ID exists
     if proposal_id:
@@ -146,9 +152,7 @@ def fxTradeMultiplier(url, token, symbol, amount, multiplier, take_profit, stop_
         print("WebSocket connection closed.")
     except Exception as e:
         return {"message": f"Error closing WebSocket: {e}"}
-
-    return {"message": "Trade completed successfully!"}
-
+    return {"message": f"Trade completed successfully! Here is the contract ID: {contract_id}"}
 
 def fxCloseMultiplierTrade(request):
     # Sell the contract (close the position)
@@ -196,26 +200,82 @@ def fxCloseMultiplierTrade(request):
 
 
 
+#Failed to receive proposal ID Trade completed successfully
+def testApp(request):
+    # Replace these with your test token and parameters
+    test_token = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"  # Replace with a valid token
+    test_lot_size = 5  # Example lot size
+    test_tp = 3.00        # Example take profit
+    test_sl = .50        # Example stop loss
+    test_symbol = "CRASH600"  # Example trading symbol
 
-async def subscribe_open_contract(contract_id):
+    # Call the executeTrade function
+    return executeTrade(test_token, test_lot_size, test_tp, test_sl, test_symbol)
+
+# Django async view
+async def testContract(request):
+    contract_id = '269899111088'  # Set your contract ID here
     try:
+        # Directly await the async function instead of using asyncio.run
+        updates = await get_contract_details(contract_id)
+    
+        # Convert updates to HTML content
+        html_content = "<h1>Contract Updates</h1><ul>"
+        if isinstance(updates, list):  # Check if updates are available
+            for update in updates:
+                html_content += f"<li>{update}</li>"
+        elif isinstance(updates, dict) and 'error' in updates:
+            html_content += f"<li>Error: {updates['error']}</li>"  # Show error if 'error' key is present
+        else:
+            html_content += f"<li>No updates or error message received.{updates}</li>"  # No updates or error found
 
-        # Initialize DerivAPI instance (replace with your actual API setup)
-        api = DerivAPI({"app_id": "YOUR_APP_ID", "token": "YOUR_API_TOKEN"})
+        html_content += "</ul>"
 
-        # Subscribe to the open contract stream
-        source_poc = await api.subscribe({"proposal_open_contract": 1, "contract_id": contract_id})
-
-        # Collect updates
-        updates = []
-        source_poc.subscribe(lambda poc: updates.append(poc))
-
-        # Optionally: Send real-time updates to the client (e.g., WebSocket)
-        # For now, we wait for a few updates and return them
-        await asyncio.sleep(5)  # Collect updates for 5 seconds
-        return JsonResponse({"updates": updates}, status=200)
+        # Return the HTML response
+        return HttpResponse(html_content, content_type="text/html")
 
     except Exception as e:
-        # Handle any errors gracefully
-        return JsonResponse({"error": f"Failed to subscribe to open contract stream: {str(e)}"}, status=500)
+        # Provide more detailed error information in the response
+        error_message = str(e)
+        if "error" in error_message:
+            error_message = f"Detailed Error: {error_message}"
+        return HttpResponse(f"<h1>Error: {error_message}</h1>", content_type="text/html")
+
+
+
+# Replace with your actual app_id and API token
+app_id = "65102"
+api_token = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"
+
+async def get_contract_details(contract_id):
+    # Initialize the DerivAPI instance
+    api = DerivAPI(app_id=app_id)
+
+    try:
+        # Authorize the connection with your API token
+        await api.authorize(api_token)
+        print("Authorized successfully.")
+
+        # Send the proposal_open_contract request
+        request = {
+            "proposal_open_contract": 1,
+            "contract_id": contract_id
+        }
+        response = await api.send(request)
+        print(f"Contract details for ID {contract_id}:")
+        print(response)
+
+        return response  # Return the contract details for further use
+
+    except Exception as e:
+        print(f"An error occurred: {e}")
+        return None
+
+    finally:
+        # Disconnect from the API
+        await api.disconnect()
+        print("Disconnected from Deriv API")
+
+
+
 
