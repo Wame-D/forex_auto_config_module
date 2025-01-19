@@ -691,8 +691,6 @@ def get_profit_and_loss_margin(request):
                 FROM start_stop_table
                 WHERE email = '{email}'
             """)
-
-            print(result.result_set)
             
             if result :
                 row_data = result.result_set

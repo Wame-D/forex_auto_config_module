@@ -17,6 +17,14 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(
 CAT_TIMEZONE = pytz.timezone("Africa/Harare")
 client = get_clickhouse_client()
 
+# ANSI escape codes for colors
+RED = '\033[91m'
+GREEN = '\033[92m'
+YELLOW = '\033[93m'
+BLUE = '\033[94m'
+RESET = '\033[0m' 
+
+
 
 async def main():
     """
@@ -29,25 +37,22 @@ async def main():
             aligned_time = now_utc.replace(second=0, microsecond=0)
             aligned_time_cat = aligned_time.astimezone(CAT_TIMEZONE)
 
-            print(f"\n[INFO] Current UTC Time: {now_utc}")
-            print(f"[INFO] Aligned Time (CAT): {aligned_time_cat}")
-
             # Fetch data
             logging.info("Fetching forex data...")
             df_minute = fetch_forex_data()
             if df_minute is None:
-                print("[ERROR] Failed to fetch forex data. Retrying in 60 seconds...")
+                print(f"{RED}[ERROR] Failed to fetch forex data. Retrying in 60 seconds...{RESET}")
                 await asyncio.sleep(60)
                 continue
 
-            print("[INFO] Forex data fetched successfully.")
+            print(f"{GREEN }[INFO] Forex data fetched successfully.{RESET}")
 
             # Aggregate data
             print("[INFO] Aggregating data into 4H ,30M and 15M intervals...")
             df_4h = aggregate_data(df_minute, "4H")
             df_15m = aggregate_data(df_minute, "15M")
             df_30m = aggregate_data(df_minute, "30M")
-            print("[INFO] Data aggregation complete.")
+            print(f"{GREEN }[INFO] Data aggregation complete.{RESET}")
 
             # Analyze strategy and generate signals
             print("[INFO] Analyzing trading strategy...")    
@@ -125,11 +130,11 @@ async def prepare_trading(signals):
         """)
 
         if not result.result_set:
-            print("[WARNING] No active tokens found for the specified strategy.")
+            print(f"{YELLOW}[WARNING] No active tokens found for the specified strategy.{RESET}")
             return
 
         tokens = [row[0] for row in result.result_set]
-        print(f"[INFO] Found tokens for trading: {tokens}")
+        print(f"{GREEN }[INFO] Found tokens for trading: {tokens}{RESET}")
 
         for signal in signals:
             for token in tokens:
@@ -141,6 +146,8 @@ async def prepare_trading(signals):
                 """)
                 email = [row[0] for row in result.result_set]
                 eligible = eligible_user(email[0])
+                # checking if the user is eligible to trade
+
                 if eligible == 'true':
                     symbols_result = client.query(f"""
                         SELECT symbol FROM symbols 
@@ -149,25 +156,21 @@ async def prepare_trading(signals):
                     symbols = [row[0] for row in symbols_result.result_set]
 
                     if local_symbol in symbols:
-                        print(f"[INFO] Token {token} is linked to symbol {local_symbol}. Calculating risk...")
                         risk_amount = await calculate_risk(token,signal['Entry'],signal['SL'])
-                        print(f"[INFO] Risk amount calculated: {risk_amount}")
 
                         if risk_amount > 0:
                             if signal['Signal'] == "Buy":
-                                print(f"[INFO] Placing BUY trade for {local_symbol} with risk amount {risk_amount}")
+                                print(f"{GREEN }[INFO] Placing BUY trade for {local_symbol} with risk amount {risk_amount}{RESET}")
                                 # executeTrade(token, risk_amount, signal['TP'], signal['SL'], local_symbol)
                                 print("[INFO] BUY trade executed successfully.")
                             elif signal['Signal'] == "Sell":
-                                print(f"[INFO] Placing SELL trade for {local_symbol} with risk amount {risk_amount}")
+                                print(f"{BLUE }[INFO] Placing SELL trade for {local_symbol} with risk amount {risk_amount}{RESET}")
                                 # executeTrade(token, risk_amount, signal['TP'], signal['SL'], local_symbol)
-                                print("[INFO] SELL trade executed successfully.")
+                                print(f"{GREEN }[INFO] SELL trade executed successfully.{RESET}")
                             else:
-                                print("[WARNING] Unknown signal type encountered.")
+                                print(f"{YELLOW}[WARNING] Unknown signal type encountered.{RESET}")
                         else:
-                            print(f"[WARNING] Risk amount too low for token {token}. Trade skipped.")
-                else:
-                    print(f"[WARNING] user {email[0]}. not trading today Trade skipped.")
+                            print(f"{YELLOW}[WARNING] Risk amount too low for token {token}. Trade skipped.{RESET}")
     except Exception as e:
         print(f"[ERROR] Error in prepare_trading: {e}")
         logging.error(f"Error in prepare_trading: {e}")

@@ -7,6 +7,8 @@ from .strategy import  moving_average_strategy
 # Set up logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+GREEN = '\033[92m'
+RESET = '\033[0m'  
 
 def is_price_within_safe_zone(
     candle: Dict[str, Any], signal_type: str, safe_zone_top: float, safe_zone_bottom: float
@@ -212,7 +214,7 @@ def analysis(
 
     if "Malaysian" in strategy_type:
         malaysian_signals = analyze_malaysian_strategy(df_4h, df_15m)
-        print("Malaysian Strategy Signals:", malaysian_signals)  # Debugging statement
+        print(f"{GREEN }Malaysian Strategy Signals generet:{RESET}")  
         signals.extend(malaysian_signals)
 
     if "Moving Average" in strategy_type:

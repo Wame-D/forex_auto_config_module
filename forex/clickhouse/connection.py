@@ -2,6 +2,8 @@ import clickhouse_connect
 
 # Singleton instance of the ClickHouse client
 _clickhouse_client = None
+GREEN = '\033[92m'
+RESET = '\033[0m'  
 
 def get_clickhouse_client():
     """
@@ -15,6 +17,6 @@ def get_clickhouse_client():
             password='1xf_jEyJH8gV9',
             secure=True
         )
-        print("Result:", _clickhouse_client.query("SELECT 1").result_set[0][0])
-        print("Successfully connected to ClickHouse!")
+        print(f"Result:", _clickhouse_client.query("SELECT 1").result_set[0][0])
+        print(f"{GREEN }Successfully connected to ClickHouse!{RESET}")
     return _clickhouse_client

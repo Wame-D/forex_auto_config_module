@@ -1,6 +1,5 @@
-# from .connection import get_clickhouse_client
 from datetime import datetime, timedelta
-import pytz  # Import pytz for timezone handling
+import pytz  
 import asyncio
 import threading
 
@@ -12,6 +11,13 @@ import json
 from forex.clickhouse.connection import get_clickhouse_client
 # Initialize ClickHouse client
 client = get_clickhouse_client()
+
+# ANSI escape codes for colors
+RED = '\033[91m'
+GREEN = '\033[92m'
+YELLOW = '\033[93m'
+BLUE = '\033[94m'
+RESET = '\033[0m'  # Reset to default color
 
 def eligible_user(email):
     # Simulate a POST request
@@ -32,22 +38,22 @@ def eligible_user(email):
     win_loss_data = json.loads(win_loss_content)
     win_loss = win_loss_data['data']
 
-    win_per_day = win_loss[4]
-    loss_per_day = win_loss[2]
+    win_per_day = win_loss[0][4]
+    loss_per_day = win_loss[0][2]
 
     number_of_trade_per_day = risk_per_day / risk_per_trade
     # check if user's trade has exceeded his trades per day
     today_date = datetime.now().strftime('%Y-%m-%d')
-    # Fetch the start_time from the database
     result = client.query(f"""
-        SELECT COUNT(*) AS row_count, loss_trade, win_trade
-        FROM trades 
+        SELECT COUNT(*) AS row_count, SUM(win) AS total_win, SUM(loss) AS total_loss
+        FROM trades
         WHERE email = '{email}' 
         AND DATE(timestamp) = '{today_date}'
     """)
-    trade_count  = [row[0] for row in result.result_set]
-    win = [row[1] for row in result.result_set]
-    loss = [row[2] for row in result.result_set]
+
+    trade_count = result.result_set[0][0]
+    win = result.result_set[0][1] or 0.0  # Default to 0 if None
+    loss = result.result_set[0][2] or 0.0 
 
     # fetching alance that the user has by the start of  today
     balance_data = client.query(f"""
@@ -63,12 +69,12 @@ def eligible_user(email):
             ALTER TABLE userdetails UPDATE trading_today = {trading}
             WHERE email = '{email}'
         """)
-
+        print(f"{YELLOW}[INFO] trades for user {email} exceeded the limit.{RESET}")
         return 'false'
     else:
         # cheking if loss or win has exceeded his / her choice
-        loss_day = balance * (loss_per_day / 100)
-        win_day = balance * (win_per_day / 100)
+        loss_day = balance[0] * (loss_per_day / 100)
+        win_day = balance[0] * (win_per_day / 100)
 
         if (loss_day <= loss or win_day <= win):
             trading = 'false'
@@ -77,6 +83,9 @@ def eligible_user(email):
                 WHERE email = '{email}'
             """)
 
+            # Use the color in the print statement
+            print(f"{YELLOW}[INFO] loss or win for user {email} exceeded the limit, not trading today Trade skipped.{RESET}")
             return 'false'
         else:
             return 'true'
+
