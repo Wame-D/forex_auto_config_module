@@ -8,6 +8,7 @@ from .strategy_analysis import analysis
 from .risk_management import calculate_risk
 from forex.clickhouse.connection import get_clickhouse_client
 from trade.views import executeTrade
+from bot_settings.configurations import eligible_user
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -54,7 +55,7 @@ async def main():
             signals = analysis(df_4h,df_30m, df_15m, strategy_type)
 
             if signals:
-                save_signals_to_clickhouse(signals)
+                # save_signals_to_clickhouse(signals)
                 await prepare_trading(signals)
             else:
                 print("[INFO] No trading signals generated.")
@@ -132,30 +133,41 @@ async def prepare_trading(signals):
 
         for signal in signals:
             for token in tokens:
-                symbols_result = client.query(f"""
-                    SELECT symbol FROM symbols 
-                    WHERE token = '{token}'
+                """
+                check first if the user is eligible to trade today
+                """
+                result = client.query(f"""
+                SELECT email FROM userdetails WHERE token = '{token}'
                 """)
-                symbols = [row[0] for row in symbols_result.result_set]
+                email = [row[0] for row in result.result_set]
+                eligible = eligible_user(email[0])
+                if eligible == 'true':
+                    symbols_result = client.query(f"""
+                        SELECT symbol FROM symbols 
+                        WHERE token = '{token}'
+                    """)
+                    symbols = [row[0] for row in symbols_result.result_set]
 
-                if local_symbol in symbols:
-                    print(f"[INFO] Token {token} is linked to symbol {local_symbol}. Calculating risk...")
-                    risk_amount = await calculate_risk(token,signal['Entry'],signal['SL'])
-                    print(f"[INFO] Risk amount calculated: {risk_amount}")
+                    if local_symbol in symbols:
+                        print(f"[INFO] Token {token} is linked to symbol {local_symbol}. Calculating risk...")
+                        risk_amount = await calculate_risk(token,signal['Entry'],signal['SL'])
+                        print(f"[INFO] Risk amount calculated: {risk_amount}")
 
-                    if risk_amount > 0:
-                        if signal['Signal'] == "Buy":
-                            print(f"[INFO] Placing BUY trade for {local_symbol} with risk amount {risk_amount}")
-                            # executeTrade(token, risk_amount, signal['TP'], signal['SL'], local_symbol)
-                            print("[INFO] BUY trade executed successfully.")
-                        elif signal['Signal'] == "Sell":
-                            print(f"[INFO] Placing SELL trade for {local_symbol} with risk amount {risk_amount}")
-                            # executeTrade(token, risk_amount, signal['TP'], signal['SL'], local_symbol)
-                            print("[INFO] SELL trade executed successfully.")
+                        if risk_amount > 0:
+                            if signal['Signal'] == "Buy":
+                                print(f"[INFO] Placing BUY trade for {local_symbol} with risk amount {risk_amount}")
+                                # executeTrade(token, risk_amount, signal['TP'], signal['SL'], local_symbol)
+                                print("[INFO] BUY trade executed successfully.")
+                            elif signal['Signal'] == "Sell":
+                                print(f"[INFO] Placing SELL trade for {local_symbol} with risk amount {risk_amount}")
+                                # executeTrade(token, risk_amount, signal['TP'], signal['SL'], local_symbol)
+                                print("[INFO] SELL trade executed successfully.")
+                            else:
+                                print("[WARNING] Unknown signal type encountered.")
                         else:
-                            print("[WARNING] Unknown signal type encountered.")
-                    else:
-                        print(f"[WARNING] Risk amount too low for token {token}. Trade skipped.")
+                            print(f"[WARNING] Risk amount too low for token {token}. Trade skipped.")
+                else:
+                    print(f"[WARNING] user {email[0]}. not trading today Trade skipped.")
     except Exception as e:
         print(f"[ERROR] Error in prepare_trading: {e}")
         logging.error(f"Error in prepare_trading: {e}")
