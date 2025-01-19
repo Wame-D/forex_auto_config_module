@@ -3,6 +3,8 @@ import pytz
 import asyncio
 import threading
 
+import schedule
+import time
 from django.http import JsonResponse
 from django.test import RequestFactory
 from .views import get_risks
@@ -18,6 +20,7 @@ GREEN = '\033[92m'
 YELLOW = '\033[93m'
 BLUE = '\033[94m'
 RESET = '\033[0m'  # Reset to default color
+today_date = datetime.now().strftime('%Y-%m-%d')
 
 def eligible_user(email):
     # Simulate a POST request
@@ -43,7 +46,6 @@ def eligible_user(email):
 
     number_of_trade_per_day = risk_per_day / risk_per_trade
     # check if user's trade has exceeded his trades per day
-    today_date = datetime.now().strftime('%Y-%m-%d')
     result = client.query(f"""
         SELECT COUNT(*) AS row_count, SUM(win) AS total_win, SUM(loss) AS total_loss
         FROM trades
@@ -88,4 +90,32 @@ def eligible_user(email):
             return 'false'
         else:
             return 'true'
+
+"""
+adding a method to reset settings to default at every 11:00pm
+
+stop bot for users who set the bot to stop at that date
+when overall win and loss have reached
+
+update todays balance
+"""
+
+def auto_config():
+    print(f"{BLUE}_________________________________________________________________________________________________________________{RESET}")
+    print(f"{BLUE}Running auto_config at {datetime.now()}{RESET}")
+    print(f"{BLUE}_________________________________________________________________________________________________________________{RESET}")
+
+# Schedule the task for 11:00 PM CAT
+def schedule_task():
+    cat_timezone = pytz.timezone('Africa/Harare')
+    current_time = datetime.now(cat_timezone)
+    print(f"Scheduler started at: {current_time}")
+    schedule.every().day.at("23:00").do(auto_config)
+
+    while True:
+        schedule.run_pending()
+        time.sleep(1)  # Sleep to prevent high CPU usage
+
+if __name__ == "__main__":
+    schedule_task()
 
