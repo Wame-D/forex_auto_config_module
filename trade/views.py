@@ -212,64 +212,53 @@ def testApp(request):
     # Call the executeTrade function
     return executeTrade(test_token, test_lot_size, test_tp, test_sl, test_symbol)
 
-# Django async view
-async def testContract(request):
-    contract_id = '269899111088'  # Set your contract ID here
-    try:
-        # Directly await the async function instead of using asyncio.run
-        updates = await get_contract_details(contract_id)
-    
-        # Convert updates to HTML content
-        html_content = "<h1>Contract Updates</h1><ul>"
-        if isinstance(updates, list):  # Check if updates are available
-            for update in updates:
-                html_content += f"<li>{update}</li>"
-        elif isinstance(updates, dict) and 'error' in updates:
-            html_content += f"<li>Error: {updates['error']}</li>"  # Show error if 'error' key is present
-        else:
-            html_content += f"<li>No updates or error message received.{updates}</li>"  # No updates or error found
-
-        html_content += "</ul>"
-
-        # Return the HTML response
-        return HttpResponse(html_content, content_type="text/html")
-
-    except Exception as e:
-        # Provide more detailed error information in the response
-        error_message = str(e)
-        if "error" in error_message:
-            error_message = f"Detailed Error: {error_message}"
-        return HttpResponse(f"<h1>Error: {error_message}</h1>", content_type="text/html")
 
 
-
-# Replace with your actual app_id and API token
-app_id = "65102"
-api_token = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"
-
-async def get_contract_details(contract_id):
-    # Initialize the DerivAPI instance
+async def fetch_contract_updates(contract_id, api_token, app_id):
+    """
+    Fetches contract updates continuously until the contract ends.
+    """
     api = DerivAPI(app_id=app_id)
 
     try:
-        # Authorize the connection with your API token
+        # Authorize the API connection
         await api.authorize(api_token)
         print("Authorized successfully.")
 
-        # Send the proposal_open_contract request
-        request = {
-            "proposal_open_contract": 1,
-            "contract_id": contract_id
-        }
-        response = await api.send(request)
-        print(f"Contract details for ID {contract_id}:")
-        print(response)
+        updates = []  # To store contract updates
+        while True:
+            try:
+                # Send the proposal_open_contract request
+                response = await api.send({
+                    "proposal_open_contract": 1,
+                    "contract_id": contract_id
+                })
 
-        return response  # Return the contract details for further use
+                # Add the response to updates
+                updates.append(response)
+
+                # Print the contract details
+                print(f"Contract details for ID {contract_id}:")
+                print(response)
+
+                # Check if the contract has ended
+                if response.get("is_expired"):
+                    print("Contract has ended.")
+                    break
+
+            except Exception as e:
+                print(f"Error fetching contract details: {e}")
+                updates.append({"error": str(e)})
+                break
+
+            # Wait for 2 seconds before fetching updates again
+            await asyncio.sleep(2)
+
+        return updates
 
     except Exception as e:
-        print(f"An error occurred: {e}")
-        return None
+        print(f"Authorization error: {e}")
+        return {"error": str(e)}
 
     finally:
         # Disconnect from the API
@@ -277,5 +266,34 @@ async def get_contract_details(contract_id):
         print("Disconnected from Deriv API")
 
 
+async def testContract(request):
+    """
+    Django async view to fetch contract updates and display them as HTML.
+    """
+    contract_id = '269899111088'
+    app_id = "65102"
+    api_token = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"
 
+    try:
+        # Fetch contract updates
+        updates = await fetch_contract_updates(contract_id, api_token, app_id)
 
+        # Convert updates to HTML content
+        html_content = "<h1>Contract Updates</h1><ul>"
+        if isinstance(updates, list):  # If updates are available
+            for update in updates:
+                html_content += f"<li>{update}</li>"
+        elif isinstance(updates, dict) and 'error' in updates:  # If an error occurred
+            html_content += f"<li>Error: {updates['error']}</li>"
+        else:
+            html_content += "<li>No updates or error message received.</li>"
+
+        html_content += "</ul>"
+
+        # Return the HTML response
+        return HttpResponse(html_content, content_type="text/html")
+
+    except Exception as e:
+        # Handle exceptions and return an error response
+        error_message = str(e)
+        return HttpResponse(f"<h1>Error: {error_message}</h1>", content_type="text/html")
