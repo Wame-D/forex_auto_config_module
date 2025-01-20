@@ -45,6 +45,8 @@ def eligible_user(email):
 
     win_per_day = win_loss[0][4]
     loss_per_day = win_loss[0][2]
+    overall_loss = win_loss[0][3]
+    overall_win = win_loss[0][5]
 
     number_of_trade_per_day = risk_per_day / risk_per_trade
     # check if user's trade has exceeded his trades per day
@@ -61,11 +63,12 @@ def eligible_user(email):
 
     # fetching alance that the user has by the start of  today
     balance_data = client.query(f"""
-        SELECT balance_today
+        SELECT balance_today, balance
         FROM userdetails
         WHERE email = '{email}' 
     """)
-    balance =  [row[0] for row in balance_data.result_set]
+    balance_day =  [row[0] for row in balance_data.result_set]
+    total_balance =  [row[1] for row in balance_data.result_set]
 
     if trade_count >= number_of_trade_per_day:
         trading = 'false'
@@ -77,8 +80,10 @@ def eligible_user(email):
         return 'false'
     else:
         # cheking if loss or win has exceeded his / her choice
-        loss_day = balance[0] * (loss_per_day / 100)
-        win_day = balance[0] * (win_per_day / 100)
+        loss_day = balance_day[0] * (loss_per_day / 100)
+        win_day = balance_day[0] * (win_per_day / 100)
+        overall_win = total_balance[0] * (overall_win /100)
+        overall_loss = total_balance[0] * (overall_loss/100)
 
         if (loss_day <= loss or win_day <= win):
             trading = 'false'
@@ -89,6 +94,15 @@ def eligible_user(email):
 
             # Use the color in the print statement
             print(f"{YELLOW}[INFO] loss or win for user {email} exceeded the limit, not trading today Trade skipped.{RESET}")
+            return 'false'
+        elif total_loss >= overall_loss or total_win >=  overall_win:
+            trading = 'false'
+            client.command(f"""
+                ALTER TABLE userdetails UPDATE trading_today = {trading}, trading = {trading}
+                WHERE email = '{email}'
+            """)
+            # Use the color in the print statement
+            print(f"{YELLOW}[INFO] overall loss or win for user {email} exceeded the limit, not trading today Trade skipped.{RESET}")
             return 'false'
         else:
             return 'true'

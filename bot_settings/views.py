@@ -10,6 +10,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
+from authorise_deriv.views import balance
 
 # Define your parameters for documentation
 token_param = openapi.Parameter('token', openapi.IN_BODY, description="Authentication token", type=openapi.TYPE_STRING)
@@ -42,6 +43,7 @@ def save_token_and_strategy(request):
                     token String,
                     strategy String,
                     trading String,
+                    trading_today String,
                     created_at DateTime,
                     started_at DateTime
                 ) ENGINE = MergeTree()
@@ -54,6 +56,7 @@ def save_token_and_strategy(request):
             email = data.get('email')
             strategy = data.get('strategy')
             trading = data.get('trading')
+          
 
             # Validate input
             if not token or not strategy or not email:
@@ -91,10 +94,11 @@ def save_token_and_strategy(request):
                         WHERE email = '{email}'
                     """)
             else:
+                account_balance = balance(token)
                 # Insert new data if the user doesn't exist
                 client.command(f"""
-                    INSERT INTO userdetails (email, token, strategy, trading, created_at)
-                    VALUES ('{email}', '{token}', '{strategy}', '{trading}', NOW())
+                    INSERT INTO userdetails (email, token, strategy, trading, balance, created_at)
+                    VALUES ('{email}', '{token}', '{strategy}', '{trading}','{account_balance}', NOW())
                 """)
 
             return JsonResponse({"message": "Data saved successfully"}, status=201)
