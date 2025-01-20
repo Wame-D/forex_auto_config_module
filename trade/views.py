@@ -2,6 +2,9 @@ import asyncio
 from django.http import JsonResponse
 from django.shortcuts import render
 from django.http import HttpResponse
+import asyncio
+import websockets
+import json
 from websocket import create_connection
 from deriv_api import DerivAPI
     
@@ -200,19 +203,6 @@ def fxCloseMultiplierTrade(request):
 
 
 
-#Failed to receive proposal ID Trade completed successfully
-def testApp(request):
-    # Replace these with your test token and parameters
-    test_token = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"  # Replace with a valid token
-    test_lot_size = 5  # Example lot size
-    test_tp = 3.00        # Example take profit
-    test_sl = .50        # Example stop loss
-    test_symbol = "CRASH600"  # Example trading symbol
-
-    # Call the executeTrade function
-    return executeTrade(test_token, test_lot_size, test_tp, test_sl, test_symbol)
-
-
 
 async def fetch_contract_updates(contract_id, api_token, app_id):
     """
@@ -264,6 +254,138 @@ async def fetch_contract_updates(contract_id, api_token, app_id):
         # Disconnect from the API
         await api.disconnect()
         print("Disconnected from Deriv API")
+
+
+
+
+
+async def fetch_profit_table(token, options=None):
+    """
+    Fetch the Profit Table from the Deriv API.
+
+    :param token: Your authorized API token with 'readtrading_information' permission.
+    :param options: Optional dictionary for profit table request parameters.
+                    - limit (int): The maximum number of transactions to retrieve (default is 50).
+                    - sort (str): Sorting order ('ASC' or 'DESC', default is 'DESC').
+                    - description (bool): Whether to include full contract descriptions (default is False).
+                    - date_from (str): Start date (optional).
+                    - date_to (str): End date (optional).
+    :return: The profit table data as a dictionary.
+    """
+    # Default options
+    options = options or {}
+    limit = options.get("limit", 50)
+    sort = options.get("sort", "DESC")
+    description = 1 if options.get("description", False) else 0
+    date_from = options.get("date_from", "")
+    date_to = options.get("date_to", "")
+
+    # Deriv WebSocket URL
+    url = "wss://ws.binaryws.com/websockets/v3?app_id=65102"
+
+    # WebSocket connection
+    async with websockets.connect(url) as websocket:
+        # Step 1: Authenticate
+        auth_message = {
+            "authorize": token
+        }
+        await websocket.send(json.dumps(auth_message))
+
+        # Wait for the authorization response
+        auth_response = await websocket.recv()
+        auth_data = json.loads(auth_response)
+        if "error" in auth_data:
+            raise Exception(f"Authorization failed: {auth_data['error']['message']}")
+
+        print("Authorization successful.")
+
+        # Step 2: Request Profit Table
+        profit_table_message = {
+            "profit_table": 1,
+            "limit": limit,
+            "sort": sort,
+            "description": description,
+            "date_from": date_from,
+            "date_to": date_to
+        }
+        await websocket.send(json.dumps(profit_table_message))
+
+        # Wait for the profit table response
+        profit_table_response = await websocket.recv()
+        profit_table_data = json.loads(profit_table_response)
+
+        # Check if there's an error in the response
+        if "error" in profit_table_data:
+            raise Exception(f"Error fetching profit table: {profit_table_data['error']['message']}")
+
+        # Step 3: Return the profit table data
+        return profit_table_data.get("profit_table", {})
+
+
+
+
+
+from datetime import datetime, timedelta
+from django.http import JsonResponse
+
+async def getpt(request):
+    # Derive today's date and calculate December 25 of the previous year
+    today = datetime.today()
+    last_year_dec_25 = datetime(today.year - 1, 12, 25)
+
+    # Format dates as strings in YYYY-MM-DD
+    date_to = today.strftime("%Y-%m-%d")
+    date_from = last_year_dec_25.strftime("%Y-%m-%d")
+
+    token = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"  # Replace with your authorized API token
+    options = {
+        "limit": 10,  # Limit to 10 transactions
+        "sort": "DESC",  # Sort by most recent transactions
+        "description": True,  # Include contract descriptions
+        "date_from": date_from,  # Calculated start date
+        "date_to": date_to,  # Calculated end date
+    }
+
+    try:
+        profit_table = await fetch_profit_table(token, options)
+        if profit_table.get("count", 0) == 0:
+            return JsonResponse({"message": "No transactions found."}, status=200)
+        return JsonResponse(profit_table, safe=False)
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# ------------------------------------------------------------------------------test
+
+#Failed to receive proposal ID Trade completed successfully
+def testApp(request):
+    # Replace these with your test token and parameters
+    test_token = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"  # Replace with a valid token
+    test_lot_size = 5  # Example lot size
+    test_tp = 3.00        # Example take profit
+    test_sl = .50        # Example stop loss
+    test_symbol = "CRASH600"  # Example trading symbol
+
+    # Call the executeTrade function
+    return executeTrade(test_token, test_lot_size, test_tp, test_sl, test_symbol)
 
 
 async def testContract(request):
