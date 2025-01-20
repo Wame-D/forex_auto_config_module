@@ -44,7 +44,7 @@ def executeTrade(token, lot_size, tp, sl, symbol):
     return JsonResponse(response)
 
 # -----------------------------------------
-# Failed to receive proposal ID Trade completed successfully
+# test function for getting contract details
 def testApp(request):
     # Replace these with your test token and parameters
     test_token = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"  # Replace with a valid token
@@ -91,6 +91,8 @@ async def testContract(request):
         return HttpResponse(f"<h1>Error: {error_message}</h1>", content_type="text/html")
 
 # -----------------------------------------
+
+
 # Async function to get profit table
 async def getpt(request):
     # Derive today's date and calculate December 25 of the previous year
@@ -111,11 +113,23 @@ async def getpt(request):
     }
 
     try:
-        profit_table = await fetch_profit_table(token, options)
-        if profit_table.get("count", 0) == 0:
+        # Fetch profit table and statistics from the Deriv API
+        profit_table_response = await fetch_profit_table(token, options)
+        
+        # Check if 'profit_table' contains valid data
+        if not profit_table_response.get("profit_table"):
             return JsonResponse({"message": "No transactions found."}, status=200)
-        return JsonResponse(profit_table, safe=False)
+        
+        # Prepare the response with profit table data and stats
+        response_data = {
+            "profit_table": profit_table_response["profit_table"],
+            "stats": profit_table_response["stats"]
+        }
+        return JsonResponse(response_data, safe=False, status=200)
+
     except Exception as e:
+        # Return an error message if there's an exception
         return JsonResponse({"error": str(e)}, status=500)
+
 
 # -----------------------------------------
