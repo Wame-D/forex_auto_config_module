@@ -2,6 +2,7 @@ import asyncio
 import logging
 from deriv_api import DerivAPI
 from .constants import PIP_VALUE, RISK_PERCENTAGE, REWARD_TO_RISK_RATIO
+from authorise_deriv.views import balance
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -11,18 +12,8 @@ async def calculate_risk(token: float, entry_price: float, stop_loss: float) -> 
     """
     Calculates the maximum monetary risk based on account balance and risk percentage.
     """
-    app_id = 65102
     try:
-        # Initialize the API
-        api = DerivAPI(app_id=app_id)
-        authorize = await api.authorize(token)
-        
-        if not authorize:
-            raise ValueError("Authorization failed")
-
-        # Get account balance
-        response = await api.balance()
-        account_balance = response.get('balance', {}).get('balance', 0)
+        account_balance = balance(token)
 
         if account_balance <= 0 or stop_loss == entry_price:
             logger.warning("Invalid account balance or stop loss equals entry price.")

@@ -60,7 +60,7 @@ async def main():
             signals = analysis(df_4h,df_30m, df_15m, strategy_type)
 
             if signals:
-                # save_signals_to_clickhouse(signals)
+                save_signals_to_clickhouse(signals)
                 await prepare_trading(signals)
             else:
                 print("[INFO] No trading signals generated.")
@@ -96,7 +96,7 @@ def save_signals_to_clickhouse(signals):
             ORDER BY timestamp
         """
         client.command(create_table_query)
-        print("[INFO] Trading signals table created or verified in ClickHouse.")
+        print(f"{BLUE}[INFO] Trading signals table created or verified in ClickHouse.{RESET}")
 
         logging.info("Storing trading signals in ClickHouse...")
         for signal in signals:
@@ -106,7 +106,7 @@ def save_signals_to_clickhouse(signals):
                     (timestamp, Pair, Signal, Entry, SL, TP,Safe_Zone_Top, Safe_Zone_Bottom)
                     VALUES (NOW(), '{signal['Pair']}', '{signal['Signal']}', {signal['Entry']}, {signal['SL']}, {signal['TP']}, {signal['Safe Zone Top']}, {signal['Safe Zone Bottom']})
                 """)
-                print(f"[INFO] Signal stored: {signal}")
+                print(f"{BLUE}[INFO] Signal stored: {signal}{RESET}")
             except Exception as e:
                 print(f"[ERROR] Failed to store signal: {signal}. Error: {e}")
                 logging.error(f"Failed to store signal: {signal}. Error: {e}")

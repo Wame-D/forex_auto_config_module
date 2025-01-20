@@ -11,6 +11,8 @@ from .views import get_risks
 from .views import get_profit_and_loss_margin
 import json
 from forex.clickhouse.connection import get_clickhouse_client
+from django_cron import CronJobBase, Schedule
+from authorise_deriv.views import balance
 # Initialize ClickHouse client
 client = get_clickhouse_client()
 
@@ -100,22 +102,49 @@ when overall win and loss have reached
 update todays balance
 """
 
+# Set up logging
+import logging
+logging.basicConfig(filename='/path/to/logfile.log', level=logging.INFO, format='%(asctime)s - %(message)s')
+
 def auto_config():
-    print(f"{BLUE}_________________________________________________________________________________________________________________{RESET}")
-    print(f"{BLUE}Running auto_config at {datetime.now()}{RESET}")
-    print(f"{BLUE}_________________________________________________________________________________________________________________{RESET}")
+    logging.info(f"_________________________________________________________________________________________________________________")
+    logging.info(f"{BLUE}Running auto_config at {datetime.now()}{RESET}")
+    logging.info(f"_________________________________________________________________________________________________________________")
 
-# Schedule the task for 11:00 PM CAT
-def schedule_task():
-    cat_timezone = pytz.timezone('Africa/Harare')
-    current_time = datetime.now(cat_timezone)
-    print(f"Scheduler started at: {current_time}")
-    schedule.every().day.at("23:00").do(auto_config)
 
-    while True:
-        schedule.run_pending()
-        time.sleep(1)  # Sleep to prevent high CPU usage
+    # shuting dow all users who set stop time to today
+    trading = 'false'
+    client.command(f"""
+        ALTER TABLE userdetails UPDATE trading_today = {trading}, trading = {trading}
+        WHERE DATE(stop_date) = '{today_date}'
+    """)
 
-if __name__ == "__main__":
-    schedule_task()
+    # resume trading for all users who were temporariry disabled to to risk limit and win or loss marging
+    client.command(f"""
+        ALTER TABLE userdetails UPDATE trading_today = 'true'
+        WHERE trading = 'true'
+    """)
+
+    # updating user alance at 12:00 mid night
+    result = client.query(f"""
+        SELECT token
+        FROM userdetails
+        WHERE trading = 'true'
+    """)
+
+    # tokens = result.result_set[0][0]
+    tokens = [row[0] for row in result.result_set]
+
+    for token in  tokens:
+        # getting balance and updating it
+        try:
+            account_balance = balance(token)
+            # updating balance
+            client.command(f"""
+                ALTER TABLE userdetails UPDATE balance_today = {account_balance}
+                WHERE token = {token}
+            """)
+        except Exception as e:
+            print(f"[ERROR] Error updating balances: {e}")
+            logging.error(f"Error updating balance: {e}")
 

@@ -4,9 +4,9 @@ from deriv_api import DerivAPI
 from django.views.decorators.csrf import csrf_exempt
 import json
 # Initialize DerivAPI client
+app_id = 65102
 @csrf_exempt
 async def authorize_user(request):
-    app_id = 65102
     if request.method == "POST":
         try:
             data = json.loads(request.body)
@@ -23,3 +23,22 @@ async def authorize_user(request):
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
     return JsonResponse({"error": "Invalid request method"}, status=405)
+
+async def balance(token):
+    try:
+        # Initialize the API
+        api = DerivAPI(app_id=app_id)
+        authorize = await api.authorize(token)
+        
+        if not authorize:
+            raise ValueError("Authorization failed")
+
+        # Get account balance
+        response = await api.balance()
+        account_balance = response.get('balance', {}).get('balance', 0)
+
+        return account_balance
+    except Exception as e:
+        return 0
+
+
