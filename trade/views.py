@@ -1,19 +1,20 @@
+import asyncio
 from django.http import JsonResponse
-from django.shortcuts import render
-from websocket import create_connection
-
+from django.http import HttpResponse
+from datetime import datetime, timedelta
+from django.http import JsonResponse
+import asyncio
+from trade.contractManagement import fetch_contract_updates
+from trade.tradeHistory import fetch_profit_table
+import websockets
 import json
+from websocket import create_connection
+from deriv_api import DerivAPI
 
-def send_request(ws, request):
-    """Sends a request to the WebSocket connection and returns the response."""
-    ws.send(json.dumps(request))
-    response = ws.recv()
-    response_data = json.loads(response)
-    if "error" in response_data:
-        print(f"Error in response: {response_data['error']}")
-    return response_data
+from .buyAndSell import fxTradeMultiplier, fxCloseMultiplierTrade
 
 
+# -----------------------------------------
 # Testing FUNCTION
 def executeTrade(token, lot_size, tp, sl, symbol):
     # Define the proposal details
@@ -22,7 +23,7 @@ def executeTrade(token, lot_size, tp, sl, symbol):
         "token": token, 
         "symbol": symbol,
         "amount": lot_size,  
-        "multiplier": 30, 
+        "multiplier": 100, 
         "take_profit": tp, 
         "stop_loss": sl  
     }
@@ -42,149 +43,93 @@ def executeTrade(token, lot_size, tp, sl, symbol):
     print(response)
     return JsonResponse(response)
 
+# -----------------------------------------
+# test function for getting contract details
+def testApp(request):
+    # Replace these with your test token and parameters
+    test_token = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"  # Replace with a valid token
+    test_lot_size = 5  # Example lot size
+    test_tp = 3.00        # Example take profit
+    test_sl = .50        # Example stop loss
+    test_symbol = "CRASH600"  # Example trading symbol
 
-def fxTradeMultiplier(url, token, symbol, amount, multiplier, take_profit, stop_loss):
-    # Establish WebSocket connection
+    # Call the executeTrade function
+    return executeTrade(test_token, test_lot_size, test_tp, test_sl, test_symbol)
+
+# -----------------------------------------
+# Async function to fetch contract updates
+async def testContract(request):
+    """
+    Django async view to fetch contract updates and display them as HTML.
+    """
+    contract_id = '269899111088'
+    app_id = "65102"
+    api_token = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"
+
     try:
-        ws = create_connection(url)
-        print("WebSocket connection established.")
-    except Exception as e:
-        print(f"Failed to establish WebSocket connection: {e}")
-        return {"message": f"Connection failed: {e}"}
+        # Fetch contract updates
+        updates = await fetch_contract_updates(contract_id, api_token, app_id)
 
-    # Authorize with the token
-    authorize_request = {"authorize": token}
-    try:
-        auth_response = send_request(ws, authorize_request)
-        if auth_response.get("error"):
-            return {"message": f"Authorization failed: {auth_response['error']['message']}"}
-        print("Authorization successful.")
-    except Exception as e:
-        return {"message": f"Authorization failed: {e}"}
+        # Convert updates to HTML content
+        html_content = "<h1>Contract Updates</h1><ul>"
+        if isinstance(updates, list):  # If updates are available
+            for update in updates:
+                html_content += f"<li>{update}</li>"
+        elif isinstance(updates, dict) and 'error' in updates:  # If an error occurred
+            html_content += f"<li>Error: {updates['error']}</li>"
+        else:
+            html_content += "<li>No updates or error message received.</li>"
 
-    # Request active symbols
-    active_symbols_request = {"active_symbols": "full"}
-    try:
-        symbols_response = send_request(ws, active_symbols_request)
-        symbols = symbols_response.get("active_symbols", [])
-        print("Active symbols fetched.")
-    except Exception as e:
-        return {"message": f"Failed to fetch symbols: {e}"}
+        html_content += "</ul>"
 
-    # Request contract details for the symbol
-    contracts_for_request = {"contracts_for": symbol}
-    try:
-        contracts_response = send_request(ws, contracts_for_request)
-        contracts = contracts_response.get("contracts_for", {}).get("available", [])
-    except Exception as e:
-        return {"message": f"Failed to fetch contracts: {e}"}
+        # Return the HTML response
+        return HttpResponse(html_content, content_type="text/html")
 
-    # Send proposal request
-    proposal_request = {
-        "proposal": 1,
-        "basis": "stake",
-        "contract_type": "MULTUP",
-        "currency": "USD",
-        "symbol": symbol,
-        "amount": amount,
-        "multiplier": multiplier,
-        "limit_order": {
-            "take_profit": take_profit * 3,
-            "stop_loss": stop_loss + 2.49,
-        }
+    except Exception as e:
+        # Handle exceptions and return an error response
+        error_message = str(e)
+        return HttpResponse(f"<h1>Error: {error_message}</h1>", content_type="text/html")
+
+# -----------------------------------------
+
+
+# Async function to get profit table
+async def getpt(request):
+    # Derive today's date and calculate December 25 of the previous year
+    today = datetime.today()
+    last_year_dec_25 = datetime(today.year - 1, 12, 25)
+
+    # Format dates as strings in YYYY-MM-DD
+    date_to = today.strftime("%Y-%m-%d")
+    date_from = last_year_dec_25.strftime("%Y-%m-%d")
+
+    token = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"  # Replace with your authorized API token
+    options = {
+        "limit": 10,  # Limit to 10 transactions
+        "sort": "DESC",  # Sort by most recent transactions
+        "description": True,  # Include contract descriptions
+        "date_from": date_from,  # Calculated start date
+        "date_to": date_to,  # Calculated end date
     }
 
     try:
-        print(proposal_request)
-        proposal_response = send_request(ws, proposal_request)
-        proposal_id = proposal_response.get("proposal", {}).get("id")
-        if not proposal_id:
-            return {"message": "Failed to receive proposal ID."}
-        print("Proposal received:", proposal_response)
-    except Exception as e:
-        return {"message": f"Failed to request proposal: {e}"}
-
-    # Execute buy request if proposal ID exists
-    if proposal_id:
-        buy_request = {"buy": proposal_id, "price": amount}
-        try:
-            buy_response = send_request(ws, buy_request)
-            print("Buy response:", buy_response)
-            contract_id = buy_response.get("buy", {}).get("contract_id")
-            if not contract_id:
-                return {"message": "Contract purchase failed."}
-            print("Contract purchased:", contract_id)
-
-            # Monitor contract status
-            open_contract_request = {"proposal_open_contract": 1, "contract_id": contract_id, "subscribe": 1}
-            try:
-                while True:
-                    open_contract_response = send_request(ws, open_contract_request)
-                    contract_details = open_contract_response.get("proposal_open_contract", {})
-                    status = contract_details.get("status")
-
-                    if status == "open":
-                        print("Contract is Open")
-                        break
-
-                    if status == "closed":
-                        print("Contract is closed. Exiting monitoring loop.")
-                        break
-
-            except Exception as e:
-                return {"message": f"Failed to monitor contract status: {e}"}
-
-        except Exception as e:
-            return {"message": f"Failed to purchase contract: {e}"}
-
-    # Close the WebSocket connection
-    try:
-        ws.close()
-        print("WebSocket connection closed.")
-    except Exception as e:
-        return {"message": f"Error closing WebSocket: {e}"}
-
-    return {"message": "Trade completed successfully!"}
-
-
-def fxCloseMultiplierTrade(request):
-    # Sell the contract (close the position)
-    try:
-        url = "wss://ws.binaryws.com/websockets/v3?app_id=65102"
-        ws = websocket.create_connection(url)
-        print("WebSocket connection established.")
-    except Exception as e:
-        print(f"Failed to establish WebSocket connection: {e}")
-        return render(request, "index.html", {"message": f"Authorization failed: {e}"})
-    
-    token = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"  # Replace with your API token
-    authorize_request = {"authorize": token}
-    try:
-        auth_response = send_request(ws, authorize_request)
-        if auth_response.get("error"):
-            print("Authorization failed:", auth_response["error"])
-            return render(request, "index.html", {"message": f"Authorization failed: {auth_response['error']}"} )
-        print("Authorization successful")
-    except Exception as e:
-        print(f"Authorization request failed: {e}")
-        return render(request, "index.html", {"message": f"Authorization request failed: {e}"})
+        # Fetch profit table and statistics from the Deriv API
+        profit_table_response = await fetch_profit_table(token, options)
         
-    sell_request = {"sell": 267924162408, "price": 40}
-    try:
-        sell_response = send_request(ws, sell_request)
-        print("Sell response:", sell_response)
-        if sell_response.get("sell", {}).get("msg_type") == "sell":
-            print("Contract successfully sold.")
-        else:
-            print("Failed to sell the contract:", sell_response)
-            return render(request, "index.html", {"message": "Failed to sell the contract."})
+        # Check if 'profit_table' contains valid data
+        if not profit_table_response.get("profit_table"):
+            return JsonResponse({"message": "No transactions found."}, status=200)
+        
+        # Prepare the response with profit table data and stats
+        response_data = {
+            "profit_table": profit_table_response["profit_table"],
+            "stats": profit_table_response["stats"]
+        }
+        return JsonResponse(response_data, safe=False, status=200)
+
     except Exception as e:
-        print(f"Failed to sell contract: {e}")
-        return render(request, "index.html", {"message": f"Failed to sell contract: {e}"})
-    
-    try:
-        ws.close()
-        print("WebSocket connection closed.")
-    except Exception as e:
-        print(f"Error closing WebSocket connection: {e}")
-        return render(request, "index.html", {"message": f"Error closing WebSocket: {e}"})
+        # Return an error message if there's an exception
+        return JsonResponse({"error": str(e)}, status=500)
+
+
+# -----------------------------------------

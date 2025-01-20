@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta
 import pytz  
-import asyncio
-import threading
+# import asyncio
+# import threading
 
 import schedule
 import time
@@ -13,6 +13,7 @@ import json
 from forex.clickhouse.connection import get_clickhouse_client
 from django_cron import CronJobBase, Schedule
 from authorise_deriv.views import balance
+from trade.tradeHistory import fetch_profit_table
 # Initialize ClickHouse client
 client = get_clickhouse_client()
 
@@ -24,7 +25,7 @@ BLUE = '\033[94m'
 RESET = '\033[0m'  # Reset to default color
 today_date = datetime.now().strftime('%Y-%m-%d')
 
-def eligible_user(email):
+async def eligible_user(email, token):
     # Simulate a POST request
     factory = RequestFactory()
     request = factory.post('/get_risks/', data={'email': email}, content_type='application/json')
@@ -42,24 +43,44 @@ def eligible_user(email):
     win_loss_content = win_loss_percentage.content.decode('utf-8')
     win_loss_data = json.loads(win_loss_content)
     win_loss = win_loss_data['data']
-
+# strftime
     win_per_day = win_loss[0][4]
     loss_per_day = win_loss[0][2]
     overall_loss = win_loss[0][3]
     overall_win = win_loss[0][5]
+    date_from = win_loss[0][0]
+    date_to = today_date
+
+    print(date_from)
 
     number_of_trade_per_day = risk_per_day / risk_per_trade
     # check if user's trade has exceeded his trades per day
-    result = client.query(f"""
-        SELECT COUNT(*) AS row_count, SUM(win) AS total_win, SUM(loss) AS total_loss
-        FROM trades
-        WHERE email = '{email}' 
-        AND DATE(timestamp) = '{today_date}'
-    """)
+    # fetch trade total history
+    date_from = datetime.strptime(date_from, "%Y-%m-%dT%H:%M:%S")
+    date_from = date_from.strftime("%Y-%m-%d")
+    options = {
+        "limit": 10,  # Limit to 10 transactions
+        "sort": "DESC",  # Sort by most recent transactions
+        "description": True,  # Include contract descriptions
+        "date_from": date_from,  # Calculated start date
+        "date_to": today_date,  # Calculated end date
+    }
+    history = await fetch_profit_table("a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy", options)
+    total_loss = history['stats']['total_loss']
+    total_win = history['stats']['total_profit']
 
-    trade_count = result.result_set[0][0]
-    win = result.result_set[0][1] or 0.0  # Default to 0 if None
-    loss = result.result_set[0][2] or 0.0 
+    # per day history
+    options1 = {
+        "limit": 10,  # Limit to 10 transactions
+        "sort": "DESC",  # Sort by most recent transactions
+        "description": True,  # Include contract descriptions
+        "date_from": today_date,  # Calculated start date
+        "date_to": today_date,  # Calculated end date
+    }
+    today_history = await fetch_profit_table("a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy", options1)
+    trade_count = today_history['profit_table']['count']
+    loss = today_history['stats']['total_loss']
+    win = today_history['stats']['total_profit']
 
     # fetching alance that the user has by the start of  today
     balance_data = client.query(f"""

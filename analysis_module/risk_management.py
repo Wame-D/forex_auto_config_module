@@ -13,8 +13,8 @@ async def calculate_risk(token: float, entry_price: float, stop_loss: float) -> 
     Calculates the maximum monetary risk based on account balance and risk percentage.
     """
     try:
-        account_balance = balance(token)
 
+        account_balance = balance(token)
         if account_balance <= 0 or stop_loss == entry_price:
             logger.warning("Invalid account balance or stop loss equals entry price.")
             return 0.0
