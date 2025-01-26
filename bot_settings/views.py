@@ -11,12 +11,16 @@ from rest_framework.response import Response
 from drf_yasg.utils import swagger_auto_schema
 from drf_yasg import openapi
 from authorise_deriv.views import balance
+from rest_framework import serializers
 
 # Define your parameters for documentation
 token_param = openapi.Parameter('token', openapi.IN_BODY, description="Authentication token", type=openapi.TYPE_STRING)
 email_param = openapi.Parameter('email', openapi.IN_BODY, description="User's email", type=openapi.TYPE_STRING)
 strategy_param = openapi.Parameter('strategy', openapi.IN_BODY, description="Trading strategy", type=openapi.TYPE_STRING)
 trading_param = openapi.Parameter('trading', openapi.IN_BODY, description="Trading details", type=openapi.TYPE_BOOLEAN)
+
+class EmailSerializer(serializers.Serializer):
+    email = serializers.EmailField()
 
 @swagger_auto_schema(method='post', 
     request_body=openapi.Schema(
@@ -44,6 +48,8 @@ def save_token_and_strategy(request):
                     strategy String,
                     trading String,
                     trading_today String,
+                    balance Float32,
+                    balance_today Float32, 
                     created_at DateTime,
                     started_at DateTime
                 ) ENGINE = MergeTree()
@@ -109,7 +115,7 @@ def save_token_and_strategy(request):
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
 # Updating the trading status of the user
-@swagger_auto_schema(method='post', 
+@swagger_auto_schema(method='PUT', 
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
         properties={
@@ -118,10 +124,10 @@ def save_token_and_strategy(request):
         }
     )
 )
-@api_view(['POST'])
+@api_view(['PUT'])
 @csrf_exempt
 def update_trading_status(request):
-    if request.method == 'POST':
+    if request.method == 'PUT':
         try:
             # Parse JSON data from the request
             data = json.loads(request.body)
@@ -134,10 +140,38 @@ def update_trading_status(request):
 
             # Update the trading status in ClickHouse
             if trading:
-                client.command(f"""
-                ALTER TABLE userdetails UPDATE trading = {trading}, started_at = NOW()
+                """
+                Checks if the start_date for the given email is today.
+
+                Args:
+                    client: The database client object.
+                    email: The email address to check.
+
+                Returns:
+                    True if the start_date is today, False otherwise
+                    then if start date is today, start trading immediately or wait for that day.
+                """
+                result = client.query(f"""
+                SELECT start_date
+                FROM start_stop_table
                 WHERE email = '{email}'
                 """)
+
+                if result.result_set:
+                    start_date_str = result.result_set[0][0]
+                    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() 
+                    today = date.today()
+
+                    if start_date == today:
+                        client.command(f"""
+                        ALTER TABLE userdetails UPDATE trading = {trading}, started_at = NOW()
+                        WHERE email = '{email}'
+                        """)
+                    else:
+                        return JsonResponse({
+                            "message": "Trading status updated successfully.",
+                            "start_date": start_date.strftime('%Y-%m-%d')
+                        }, status=200)
             else:
                 client.command(f"""
                     ALTER TABLE userdetails UPDATE trading = {trading}
@@ -152,22 +186,19 @@ def update_trading_status(request):
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
 # Getting the time the user allowed the bot to start trading
-@swagger_auto_schema(method='post', 
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'email': openapi.Schema(type=openapi.TYPE_STRING),
-        }
-    )
+@swagger_auto_schema(
+    method='GET',
+    query_serializer=EmailSerializer,  # Use query_serializer for GET requests
+    responses={200: openapi.Response('Success')}
 )
-@api_view(['POST'])
+@api_view(['GET'])
 @csrf_exempt
 def get_start_time(request):
-    if request.method == 'POST':
+    if request.method == 'GET':
         try:
-            # Parse JSON data from the request
-            data = json.loads(request.body)
-            email = data.get('email')
+        
+            # Access query parameters
+            email = request.query_params.get('email')
 
             if not email:
                 return JsonResponse({"error": "email is required"}, status=400)
@@ -194,22 +225,18 @@ def get_start_time(request):
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
 # Getting the strategy that the user selected
-@swagger_auto_schema(method='post', 
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'email': openapi.Schema(type=openapi.TYPE_STRING),
-        }
-    )
+@swagger_auto_schema(
+    method='GET',
+    query_serializer=EmailSerializer,  # Use query_serializer for GET requests
+    responses={200: openapi.Response('Success')}
 )
-@api_view(['POST'])
+@api_view(['GET'])
 @csrf_exempt
 def get_strategy(request):
-    if request.method == 'POST':
+    if request.method == 'GET':
         try:
             # Parse JSON data from the request
-            data = json.loads(request.body)
-            email = data.get('email')
+            email = request.query_params.get('email')
 
             if not email:
                 return JsonResponse({"error": "email is required"}, status=400)
@@ -294,22 +321,18 @@ def save_symbols(request):
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
 # Getting symbols that the user selected
-@swagger_auto_schema(method='post', 
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'email': openapi.Schema(type=openapi.TYPE_STRING),
-        }
-    )
+@swagger_auto_schema(
+    method='GET',
+    query_serializer=EmailSerializer,  # Use query_serializer for GET requests
+    responses={200: openapi.Response('Success')}
 )
-@api_view(['POST'])
+@api_view(['GET'])
 @csrf_exempt
 def get_symbol(request):
-    if request.method == 'POST':
+    if request.method == 'GET':
         try:
             # Parse JSON data from the request
-            data = json.loads(request.body)
-            email = data.get('email')
+            email = request.query_params.get('email')
 
             if not email:
                 return JsonResponse({"error": "email is required"}, status=400)
@@ -332,7 +355,7 @@ def get_symbol(request):
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
 # dELETING SYMBOLS FROM THE DATABASE from the database
-@swagger_auto_schema(method='post', 
+@swagger_auto_schema(method='DELETE', 
     request_body=openapi.Schema(
         type=openapi.TYPE_OBJECT,
         properties={
@@ -341,10 +364,10 @@ def get_symbol(request):
         }
     )
 )
-@api_view(['POST'])
+@api_view(['DELETE'])
 @csrf_exempt
 def delete_symbol(request):
-    if request.method == 'POST':
+    if request.method == 'DELETE':
         try:
             # Parse JSON data from the request
             data = json.loads(request.body)
@@ -470,22 +493,21 @@ def save_risks(request):
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
 # getting risk data from database
-@swagger_auto_schema(method='post', 
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'email': openapi.Schema(type=openapi.TYPE_STRING),
-        }
-    )
+@swagger_auto_schema(
+    method='GET',
+    query_serializer=EmailSerializer,  # Use query_serializer for GET requests
+    responses={200: openapi.Response('Success')}
 )
-@api_view(['POST'])
+@api_view(['GET'])
 @csrf_exempt
 def get_risks(request):
-    if request.method == 'POST':
+    if request.method == 'GET':
         try:
             # Parse JSON data from the request
-            data = json.loads(request.body)
-            email = data.get('email')
+            # data = json.loads(request.body)
+            # email = data.get('email')
+            # Access query parameters
+            email = request.query_params.get('email')
 
             if not email:
                 return JsonResponse({"error": "email is required"}, status=400)
@@ -547,7 +569,7 @@ def profit_and_loss_margin(request):
             # Ensure the table exists
             client.command("""
                 CREATE TABLE IF NOT EXISTS start_stop_table (
-                    email String PRIMARY KEY,
+                    email String,
                     start_date DateTime,
                     stop_date DateTime,
                     loss_per_day Float32,
@@ -671,21 +693,16 @@ def profit_and_loss_margin(request):
 
 # getting profit and loss data data from database
 @csrf_exempt
-@swagger_auto_schema(method='post', 
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'email': openapi.Schema(type=openapi.TYPE_STRING),
-        }
-    )
+@swagger_auto_schema(
+    method='GET',
+    query_serializer=EmailSerializer,  # Use query_serializer for GET requests
+    responses={200: openapi.Response('Success')}
 )
-@api_view(['POST'])
+@api_view(['GET'])
 def get_profit_and_loss_margin(request):
-    if request.method == 'POST':
+    if request.method == 'GET':
         try:
-            # Parse JSON data from the request
-            data = json.loads(request.body)
-            email = data.get('email')
+            email = request.query_params.get('email')
 
             if not email:
                 return JsonResponse({"error": "email is required"}, status=400)

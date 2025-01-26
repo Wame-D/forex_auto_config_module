@@ -16,7 +16,7 @@ async def fetch_and_store_candles():
     deriv_app_id = 65102
     symbol = "frxEURUSD"
     granularity = 60  # Candle timeframe in seconds
-    table_name = "candles"  # ClickHouse table
+    table_name = "eurousd"  # ClickHouse table
 
     # Define the CAT timezone
     cat_timezone = pytz.timezone("Africa/Harare")
@@ -236,7 +236,7 @@ async def store_candle_in_clickhouse(candle, table_name, cat_timezone):
         client = get_clickhouse_client()
         create_table_query = f"""
             CREATE TABLE IF NOT EXISTS {table_name} (
-                timestamp DateTime PRIMARY KEY,
+                timestamp DateTime,
                 open Float32,
                 high Float32,
                 low Float32,

@@ -63,11 +63,12 @@ def fetch_forex_data() -> Optional[List[Dict[str, Any]]]:
 # fETCHING eURO/USD candles  
 def get_candles():
     try:
-        #valid_tables = ['candles', 'v75_candles', 'us30_candles']
+        #valid_tables = ['eurousd', 'v75_candles', 'us30_candles']
         # Execute the query to fetch candle data
-        result = client.query("""
+        table_name = "eurousd" 
+        result = client.query(f"""
             SELECT * 
-            FROM candles 
+            FROM {table_name} 
             WHERE timestamp >= now() - INTERVAL 360 HOUR 
             ORDER BY timestamp
         """)

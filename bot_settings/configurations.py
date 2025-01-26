@@ -1,9 +1,5 @@
 from datetime import datetime, timedelta
 import pytz  
-# import asyncio
-# import threading
-
-import schedule
 import time
 from django.http import JsonResponse
 from django.test import RequestFactory
@@ -25,7 +21,7 @@ BLUE = '\033[94m'
 RESET = '\033[0m'  # Reset to default color
 today_date = datetime.now().strftime('%Y-%m-%d')
 
-async def eligible_user(email, token):
+async def eligible_user(email,token):
     # Simulate a POST request
     factory = RequestFactory()
     request = factory.post('/get_risks/', data={'email': email}, content_type='application/json')

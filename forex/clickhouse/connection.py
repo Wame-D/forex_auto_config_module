@@ -12,11 +12,15 @@ def get_clickhouse_client():
     global _clickhouse_client
     if _clickhouse_client is None:
         _clickhouse_client = clickhouse_connect.get_client(
-            host='rerj5p7iz5.europe-west4.gcp.clickhouse.cloud',
+            host='109.74.196.98',
+            port = '8123',
             user='default',
-            password='1xf_jEyJH8gV9',
-            secure=True
+            database='forex_data',
+            # password='#00forexd4h',
+            secure=False
         )
         print(f"Result:", _clickhouse_client.query("SELECT 1").result_set[0][0])
         print(f"{GREEN }Successfully connected to ClickHouse!{RESET}")
     return _clickhouse_client
+
+
