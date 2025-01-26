@@ -8,6 +8,7 @@ import jwt
 load_dotenv()
 
 PRIVATE_KEY = os.getenv('PRIVATE_KEY_CONTENT')
+SUPERTSET_API_URL = "http://109.74.196.98:8088"
 key_id = "3dfea0d265190fe0"  # Key ID from the Preset UI
 
 def get_guest_token(request):
@@ -18,19 +19,19 @@ def get_guest_token(request):
     # Payload to encode
     payload = {
         "user": { 
-            "username": "Daniel Wame",
+            "username": "forex",
             "first_name": "Daniel",
             "last_name": "Wame"
         },
         "resources": [  # Specify the dashboard(s) the user should have access to
-            {"type": "dashboard", "id": "afe0ee9c-4bda-4694-8877-eca384df8ffb"}
+            {"type": "dashboard", "id": "707fbb66-9a39-4919-a772-473406b806b1"}
         ],
         "rls_rules": [  # RLS rules that should be applied
             {"dataset": 16, "clause": "environment = 'production'"},
             {"dataset": 42, "clause": "state = 'published'"}
         ],
         "type": "guest",
-        "aud": "970dc793",  # The Workspace ID
+        # "aud": "970dc793",  # The Workspace ID
     }
 
     # Encode the JWT
@@ -38,7 +39,7 @@ def get_guest_token(request):
         payload,
         PRIVATE_KEY,
         algorithm="RS256",
-        headers={"kid": key_id}
+        # headers={"kid": key_id}
     )
 
     # Return the token as a JSON response
