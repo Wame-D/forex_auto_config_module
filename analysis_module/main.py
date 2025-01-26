@@ -70,7 +70,7 @@ async def main():
                 # Analyze strategy and generate signals
                 print("[INFO] Analyzing trading strategy...")    
                 strategy_type = ["Malaysian", "Moving Average"]
-                signals = analysis(df_4h,df_30m, df_15m, strategy_type)
+                signals = analysis(df_4h,df_30m, df_15m, strategy_type,symbol)
 
                 if signals:
                     save_signals_to_clickhouse(signals)
