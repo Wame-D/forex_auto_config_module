@@ -392,6 +392,50 @@ def delete_symbol(request):
 
     return JsonResponse({"error": "Invalid HTTP method"}, status=405)
 
+# delete candles from database
+@swagger_auto_schema(method='DELETE', 
+    request_body=openapi.Schema(
+        type=openapi.TYPE_OBJECT,
+        properties={
+            'symbol': openapi.Schema(type=openapi.TYPE_STRING),
+        }
+    )
+)
+@api_view(['DELETE'])
+@csrf_exempt
+def delete_candles(request):
+    if request.method == 'DELETE':
+        try:
+            # Parse JSON data from the request
+            data = json.loads(request.body)
+            symbol = data.get('symbol')
+
+            symbol_table_map = {
+            "EUR/USD": "eurousd",
+            "Gold/USD": "gold_candles",
+            "V75": "v75_candles",
+            "US30": "us30_candles"
+            }
+            table_name = symbol_table_map.get(symbol)
+
+            if not symbol:
+                return JsonResponse({"error": "symbol is required"}, status=400)
+
+            # dELETING candles FROM THE DATABASE
+            result = client.query(f"""
+                TRUNCATE TABLE {table_name};
+            """)
+            if result:
+                response = result.result_set
+                return JsonResponse({" Data deleted successfully, response ": response}, status=200)
+            else:
+                return JsonResponse({"error": "symbol not found"}, status=404)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid HTTP method"}, status=405)
+
 """ 
     Risk analysis setting setthings
 

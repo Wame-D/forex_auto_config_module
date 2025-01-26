@@ -16,6 +16,7 @@ from bot_settings.views import save_risks
 from bot_settings.views import profit_and_loss_margin
 from bot_settings.views import get_risks
 from bot_settings.views import get_profit_and_loss_margin
+from bot_settings.views import delete_candles
 from forex.swagger import schema_view
 
 from django.urls import path, include
@@ -37,7 +38,7 @@ urlpatterns = [
     # bot setings
     path('save-strategy/',save_token_and_strategy, name='save_token_and_strategy' ),
     path('update-trading/', update_trading_status, name='update_trading_status'),
-    path('start-time/', get_start_time, name='get_start_time'),
+    path('Get-start-time/', get_start_time, name='get_start_time'),
     path('choosen-strategy/', get_strategy, name='get_strategy' ),
     path('save_symbols/', save_symbols, name='save_symbols' ),
     path('get_symbols/', get_symbol, name='get_symbol' ),
@@ -46,6 +47,7 @@ urlpatterns = [
     path('get_risks/', get_risks, name='get_risks' ),
     path('save_profit_and_loss/', profit_and_loss_margin, name='profit_and_loss_margin' ),
     path('get_profit_and_loss/', get_profit_and_loss_margin, name='get_profit_and_loss_margin' ),
+    path('delete-candles/', delete_candles, name='delete_candles' ),
 
 
 ]

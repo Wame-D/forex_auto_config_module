@@ -153,17 +153,24 @@ def auto_config():
         WHERE trading = 'true'
     """)
 
+    # start trading to all users whoe set start to today
+    client.command(f"""
+        ALTER TABLE userdetails UPDATE trading_today = true, trading = true
+        WHERE DATE(start_date) = '{today_date}'
+    """)
+
     # updating user alance at 12:00 mid night
     result = client.query(f"""
-        SELECT token
+        SELECT token, start_date
         FROM userdetails
         WHERE trading = 'true'
     """)
 
     # tokens = result.result_set[0][0]
-    tokens = [row[0] for row in result.result_set]
+    # tokens = [row[0] for row in result.result_set]
 
-    for token in  tokens:
+    for row in result.result_set:
+        token, start_date = row[0], row[1] 
         # getting balance and updating it
         try:
             account_balance = balance(token)
@@ -172,6 +179,13 @@ def auto_config():
                 ALTER TABLE userdetails UPDATE balance_today = {account_balance}
                 WHERE token = {token}
             """)
+
+            # updating balance for new user at 12_00 midight
+            if start_date == today_date:
+                client.command(f"""
+                ALTER TABLE userdetails UPDATE balance_today = {account_balance}, balance = {account_balance}
+                WHERE token = {token}
+                """)
         except Exception as e:
             print(f"[ERROR] Error updating balances: {e}")
             logging.error(f"Error updating balance: {e}")

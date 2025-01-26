@@ -27,7 +27,7 @@ async def main():
     """
     Main loop.
     """
-    forex_symbols = ["EUR/USD | frxEURUSD", "Gold/USD ", "V75", "US30 | frxWS30"]
+    forex_symbols = ["EUR/USD | frxEURUSD", "Gold/USD", "V75", "US30 | frxWS30"]
     symbol_table_map = {
     "EUR/USD | frxEURUSD": "eurousd",
     "Gold/USD": "gold_candles",
