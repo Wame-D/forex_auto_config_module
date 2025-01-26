@@ -25,41 +25,58 @@ RESET = '\033[0m'
 
 async def main():
     """
-    Main loop placeholder.
+    Main loop.
     """
+    forex_symbols = ["EUR/USD | frxEURUSD", "Gold/USD ", "V75", "US30 | frxWS30"]
+    symbol_table_map = {
+    "EUR/USD | frxEURUSD": "eurousd",
+    "Gold/USD": "gold_candles",
+    "V75": "v75_candles",
+    "US30 | frxWS30": "us30_candles"
+    }
     while True:
         try:
-            now_utc = datetime.utcnow()
-            aligned_time = now_utc.replace(second=0, microsecond=0)
-            aligned_time_cat = aligned_time.astimezone(CAT_TIMEZONE)
 
-            # Fetch data
-            logging.info("Fetching forex data...")
-            df_minute = fetch_forex_data()
-            if df_minute is None:
-                print(f"{RED}[ERROR] Failed to fetch forex data. Retrying in 60 seconds...{RESET}")
-                await asyncio.sleep(60)
-                continue
+            for symbol in forex_symbols:
+                table_name = symbol_table_map.get(symbol)
+                if not table_name:
+                    print(f"{RED}[ERROR] No table name found for {symbol}.{RESET}")
+                    continue
+                print("")
+                print(f"{BLUE}[INFO] Starting operations for {symbol} (Table: {table_name})...{RESET}")
+                print("")
 
-            print(f"{GREEN }[INFO] Forex data fetched successfully.{RESET}")
+                now_utc = datetime.utcnow()
+                aligned_time = now_utc.replace(second=0, microsecond=0)
+                aligned_time_cat = aligned_time.astimezone(CAT_TIMEZONE)
 
-            # Aggregate data
-            print("[INFO] Aggregating data into 4H ,30M and 15M intervals...")
-            df_4h = aggregate_data(df_minute, "4H")
-            df_15m = aggregate_data(df_minute, "15M")
-            df_30m = aggregate_data(df_minute, "30M")
-            print(f"{GREEN }[INFO] Data aggregation complete.{RESET}")
+                # Fetch data
+                logging.info("Fetching forex data...")
+                df_minute = fetch_forex_data(table_name)
+                if df_minute is None:
+                    print(f"{RED}[ERROR] Failed to fetch forex data. Retrying in 60 seconds...{RESET}")
+                    await asyncio.sleep(60)
+                    continue
 
-            # Analyze strategy and generate signals
-            print("[INFO] Analyzing trading strategy...")    
-            strategy_type = ["Malaysian", "Moving Average"]
-            signals = analysis(df_4h,df_30m, df_15m, strategy_type)
+                print(f"{GREEN }[INFO] Forex data fetched successfully.{RESET}")
 
-            if signals:
-                save_signals_to_clickhouse(signals)
-                await prepare_trading(signals)
-            else:
-                print("[INFO] No trading signals generated.")
+                # Aggregate data
+                print("[INFO] Aggregating data into 4H ,30M and 15M intervals...")
+                df_4h = aggregate_data(df_minute, "4H")
+                df_15m = aggregate_data(df_minute, "15M")
+                df_30m = aggregate_data(df_minute, "30M")
+                print(f"{GREEN }[INFO] Data aggregation complete.{RESET}")
+
+                # Analyze strategy and generate signals
+                print("[INFO] Analyzing trading strategy...")    
+                strategy_type = ["Malaysian", "Moving Average"]
+                signals = analysis(df_4h,df_30m, df_15m, strategy_type)
+
+                if signals:
+                    save_signals_to_clickhouse(signals)
+                    await prepare_trading(signals)
+                else:
+                    print("[INFO] No trading signals generated.")
 
         except Exception as e:
             print(f"[ERROR] Exception in main loop: {e}")

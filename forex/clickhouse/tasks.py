@@ -118,7 +118,7 @@ async def fetch_v75():
     Starts at the current time and continues fetching a new candle every minute.
     """
     deriv_app_id = 65102
-    symbol = "frxEURUSD"
+    symbol = "R_75"
     granularity = 60  # Candle timeframe in seconds
     table_name = "v75_candles"  # ClickHouse table
 
@@ -170,7 +170,7 @@ async def fetch_gold_candles():
     Starts at the current time and continues fetching a new candle every minute.
     """
     deriv_app_id = 65102
-    symbol = "frxXAGUSD"
+    symbol = "frxXAUUSD"  #frxXAGUSD
     granularity = 60  # Candle timeframe in seconds
     table_name = "gold_candles"  # ClickHouse table
 

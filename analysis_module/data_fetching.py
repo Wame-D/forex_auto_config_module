@@ -39,13 +39,13 @@ def parse_forex_data(candles: List[Dict[str, Any]]) -> Optional[List[Dict[str, A
     return parsed_candles
 
 
-def fetch_forex_data() -> Optional[List[Dict[str, Any]]]:
+def fetch_forex_data(table_name) -> Optional[List[Dict[str, Any]]]:
     """
     Fetches real-time forex data (minute-level candles) and returns parsed data as a list of dictionaries.
     """
     logger.info("Fetching forex data...")
     try:
-        response = get_candles()
+        response = get_candles(table_name)
         if isinstance(response, dict) and "error" in response:
             logger.error(f"Error fetching forex data: {response['error']}")
             return None
@@ -61,11 +61,10 @@ def fetch_forex_data() -> Optional[List[Dict[str, Any]]]:
         return None
     
 # fETCHING eURO/USD candles  
-def get_candles():
+def get_candles(table_name):
     try:
         #valid_tables = ['eurousd', 'v75_candles', 'us30_candles']
         # Execute the query to fetch candle data
-        table_name = "eurousd" 
         result = client.query(f"""
             SELECT * 
             FROM {table_name} 
