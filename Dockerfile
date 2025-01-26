@@ -36,6 +36,7 @@ ENV PORT=9090
 
 # Expose the port for the web app
 EXPOSE ${PORT}
+ENV DJANGO_SETTINGS_MODULE=forex.settings
 
 # Command to run the Django app with Gunicorn
 CMD gunicorn --bind :${PORT} --workers $(($(nproc) * 2 + 1)) forex.wsgi:application
