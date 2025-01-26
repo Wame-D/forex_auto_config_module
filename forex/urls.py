@@ -49,5 +49,4 @@ urlpatterns = [
     path('get_profit_and_loss/', get_profit_and_loss_margin, name='get_profit_and_loss_margin' ),
     path('delete-candles/', delete_candles, name='delete_candles' ),
 
-
 ]
