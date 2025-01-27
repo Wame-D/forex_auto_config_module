@@ -143,38 +143,10 @@ def update_trading_status(request):
 
             # Update the trading status in ClickHouse
             if trading:
-                """
-                Checks if the start_date for the given email is today.
-
-                Args:
-                    client: The database client object.
-                    email: The email address to check.
-
-                Returns:
-                    True if the start_date is today, False otherwise
-                    then if start date is today, start trading immediately or wait for that day.
-                """
-                result = client.query(f"""
-                SELECT start_date
-                FROM start_stop_table
-                WHERE email = '{email}'
-                """)
-
-                if result.result_set:
-                    start_date_str = result.result_set[0][0]
-                    start_date = start_date_str.date()
-                    today = date.today()
-
-                    if start_date == today:
-                        client.command(f"""
-                        ALTER TABLE userdetails UPDATE trading = {trading}, started_at = NOW()
-                        WHERE email = '{email}'
-                        """)
-                    else:
-                        return JsonResponse({
-                            "message": "Trading status updated successfully.",
-                            "start_date": start_date.strftime('%Y-%m-%d')
-                        }, status=200)
+                client.command(f"""
+                    ALTER TABLE userdetails UPDATE trading = {trading}, started_at = NOW()
+                    WHERE email = '{email}'
+                    """)
             else:
                 client.command(f"""
                     ALTER TABLE userdetails UPDATE trading = {trading}
