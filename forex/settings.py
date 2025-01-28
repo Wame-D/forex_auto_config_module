@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'trade',
     'drf_yasg',
     'django_crontab',
+    'notifications'
     # 'django_cron',
 ]
 
