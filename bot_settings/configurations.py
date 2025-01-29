@@ -7,7 +7,7 @@ from .views import get_risks
 from .views import get_profit_and_loss_margin
 import json
 from forex.clickhouse.connection import get_clickhouse_client
-from django_cron import CronJobBase, Schedule
+# from django_cron import CronJobBase, Schedule
 from authorise_deriv.views import balance
 from trade.tradeHistory import fetch_profit_table
 # Initialize ClickHouse client

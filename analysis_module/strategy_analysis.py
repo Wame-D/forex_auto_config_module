@@ -120,7 +120,7 @@ def filter_perfect_signals(signals: List[Dict[str, Any]]) -> List[Dict[str, Any]
     return filtered_signals
 
 def analyze_malaysian_strategy(
-    candles_4h: List[Dict[str, Any]], candles_15m: List[Dict[str, Any]]
+    candles_4h: List[Dict[str, Any]], candles_15m: List[Dict[str, Any]], symbol
 ) -> List[Dict[str, Any]]:
     """Analyzes forex data using the enhanced Malaysian Forex Trading Strategy."""
     logger.info("Starting analysis for Enhanced Malaysian Forex Strategy...")
@@ -131,7 +131,7 @@ def analyze_malaysian_strategy(
             prev_candle = candles_4h[i - 1]
             current_candle = candles_4h[i]
             entry_price = current_candle["close"]
-            pair = current_candle.get("pair", "frxEURUSD")
+            pair = symbol
 
             # Skip exotic pairs
             if pair in EXOTIC_PAIRS:
@@ -199,7 +199,7 @@ def analyze_malaysian_strategy(
         return []
 def analysis(
     df_4h: List[Dict[str, Any]], df_30m: List[Dict[str, Any]], 
-    df_15m: List[Dict[str, Any]], strategy_type: List[str]
+    df_15m: List[Dict[str, Any]], strategy_type: List[str], symbol
 ) -> List[Dict[str, Any]]:
     """
     Generate trading signals based on the selected strategies.
@@ -213,7 +213,7 @@ def analysis(
     signals = []
 
     if "Malaysian" in strategy_type:
-        malaysian_signals = analyze_malaysian_strategy(df_4h, df_15m)
+        malaysian_signals = analyze_malaysian_strategy(df_4h, df_15m, symbol)
         print(f"{GREEN }Malaysian Strategy Signals generet:{RESET}")  
         signals.extend(malaysian_signals)
 

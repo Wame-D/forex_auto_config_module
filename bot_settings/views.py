@@ -2,7 +2,7 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 import json
 from forex.clickhouse.connection import get_clickhouse_client
-from datetime import date
+from datetime import datetime, date 
 
 # Initialize ClickHouse client
 client = get_clickhouse_client()
@@ -22,22 +22,24 @@ trading_param = openapi.Parameter('trading', openapi.IN_BODY, description="Tradi
 class EmailSerializer(serializers.Serializer):
     email = serializers.EmailField()
 
-@swagger_auto_schema(method='post', 
-    request_body=openapi.Schema(
-        type=openapi.TYPE_OBJECT,
-        properties={
-            'token': openapi.Schema(type=openapi.TYPE_STRING),
-            'email': openapi.Schema(type=openapi.TYPE_STRING),
-            'strategy': openapi.Schema(type=openapi.TYPE_STRING),
-            'trading': openapi.Schema(type=openapi.TYPE_BOOLEAN)
-        }
-    )
-)
-@api_view(['POST'])
+# @swagger_auto_schema(
+#     method='POST', 
+#     request_body=openapi.Schema(
+#         type=openapi.TYPE_OBJECT,
+#         properties={
+#             'token': openapi.Schema(type=openapi.TYPE_STRING),
+#             'email': openapi.Schema(type=openapi.TYPE_STRING),
+#             'strategy': openapi.Schema(type=openapi.TYPE_STRING),  # strategy as a string
+#             'trading': openapi.Schema(type=openapi.TYPE_STRING)
+#         }
+#     )
+# )
+# @api_view(['POST'])
 # Saving user token to the database and strategy
 @csrf_exempt
-def save_token_and_strategy(request):
-    name = request.query_params.get('name', None)
+async def save_token_and_strategy(request):
+    client = get_clickhouse_client()
+    # name = request.query_params.get('name', None)
     if request.method == 'POST':
         try:
 
@@ -100,11 +102,11 @@ def save_token_and_strategy(request):
                         WHERE email = '{email}'
                     """)
             else:
-                account_balance = balance(token)
+                account_balance = await balance(token)
                 # Insert new data if the user doesn't exist
                 client.command(f"""
-                    INSERT INTO userdetails (email, token, strategy, trading, balance, created_at)
-                    VALUES ('{email}', '{token}', '{strategy}', '{trading}','{account_balance}', NOW())
+                    INSERT INTO userdetails (email, token, strategy, trading, balance,balance_today, created_at)
+                    VALUES ('{email}', '{token}', '{strategy}', '{trading}',{account_balance},{account_balance}, NOW())
                 """)
 
             return JsonResponse({"message": "Data saved successfully"}, status=201)
@@ -129,6 +131,7 @@ def save_token_and_strategy(request):
 def update_trading_status(request):
     if request.method == 'PUT':
         try:
+            client = get_clickhouse_client()
             # Parse JSON data from the request
             data = json.loads(request.body)
             email = data.get('email')
@@ -140,38 +143,10 @@ def update_trading_status(request):
 
             # Update the trading status in ClickHouse
             if trading:
-                """
-                Checks if the start_date for the given email is today.
-
-                Args:
-                    client: The database client object.
-                    email: The email address to check.
-
-                Returns:
-                    True if the start_date is today, False otherwise
-                    then if start date is today, start trading immediately or wait for that day.
-                """
-                result = client.query(f"""
-                SELECT start_date
-                FROM start_stop_table
-                WHERE email = '{email}'
-                """)
-
-                if result.result_set:
-                    start_date_str = result.result_set[0][0]
-                    start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date() 
-                    today = date.today()
-
-                    if start_date == today:
-                        client.command(f"""
-                        ALTER TABLE userdetails UPDATE trading = {trading}, started_at = NOW()
-                        WHERE email = '{email}'
-                        """)
-                    else:
-                        return JsonResponse({
-                            "message": "Trading status updated successfully.",
-                            "start_date": start_date.strftime('%Y-%m-%d')
-                        }, status=200)
+                client.command(f"""
+                    ALTER TABLE userdetails UPDATE trading = {trading}, started_at = NOW()
+                    WHERE email = '{email}'
+                    """)
             else:
                 client.command(f"""
                     ALTER TABLE userdetails UPDATE trading = {trading}
@@ -196,7 +171,7 @@ def update_trading_status(request):
 def get_start_time(request):
     if request.method == 'GET':
         try:
-        
+            client = get_clickhouse_client()
             # Access query parameters
             email = request.query_params.get('email')
 
@@ -235,6 +210,7 @@ def get_start_time(request):
 def get_strategy(request):
     if request.method == 'GET':
         try:
+            client = get_clickhouse_client()
             # Parse JSON data from the request
             email = request.query_params.get('email')
 
@@ -284,12 +260,13 @@ getting user symbols
 def save_symbols(request):
     if request.method == 'POST':
         try:
+            client = get_clickhouse_client()
             client.command("""
                 CREATE TABLE IF NOT EXISTS symbols (
                     email String,
                     token String,
                     symbol String,
-                    created_at DateTime,
+                    created_at DateTime
                 ) ENGINE = MergeTree()
                 ORDER BY (email);
             """)
@@ -308,12 +285,13 @@ def save_symbols(request):
 
             # Prepare and execute bulk insertion
             for symbol in symbols:
+                print(symbol, email, token)
                 client.command(f"""
                     INSERT INTO symbols (email, token, symbol, created_at) 
                     VALUES ('{email}', '{token}', '{symbol}', NOW())
-                 """)
+                """)
 
-            return JsonResponse({"message": "Data saved successfully"}, status=201)
+            return JsonResponse({"message": "Data saved successfully"}, status=200)
 
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
@@ -331,6 +309,7 @@ def save_symbols(request):
 def get_symbol(request):
     if request.method == 'GET':
         try:
+            client = get_clickhouse_client()
             # Parse JSON data from the request
             email = request.query_params.get('email')
 
@@ -369,6 +348,7 @@ def get_symbol(request):
 def delete_symbol(request):
     if request.method == 'DELETE':
         try:
+            client = get_clickhouse_client()
             # Parse JSON data from the request
             data = json.loads(request.body)
             email = data.get('email')
@@ -379,7 +359,7 @@ def delete_symbol(request):
 
             # dELETING SYMBOLS FROM THE DATABASE from the database
             result = client.query(f"""
-                DELETE FROM symbols WHERE symbol = '{symbol}' AND email = '{email}'
+                ALTER TABLE symbols DELETE WHERE symbol = '{symbol}' AND email = '{email}'
             """)
             if result:
                 symbol = result.result_set
@@ -406,6 +386,7 @@ def delete_symbol(request):
 def delete_candles(request):
     if request.method == 'DELETE':
         try:
+            client = get_clickhouse_client()
             # Parse JSON data from the request
             data = json.loads(request.body)
             symbol = data.get('symbol')
@@ -460,6 +441,7 @@ def delete_candles(request):
 def save_risks(request):
     if request.method == 'POST':
         try:
+            client = get_clickhouse_client()
             # Ensure the table exists
             client.command("""
                 CREATE TABLE IF NOT EXISTS risk_table (
@@ -547,9 +529,7 @@ def save_risks(request):
 def get_risks(request):
     if request.method == 'GET':
         try:
-            # Parse JSON data from the request
-            # data = json.loads(request.body)
-            # email = data.get('email')
+            client = get_clickhouse_client()
             # Access query parameters
             email = request.query_params.get('email')
 
@@ -610,6 +590,7 @@ stop_date_param = openapi.Parameter('stop_date', openapi.IN_BODY, description="S
 def profit_and_loss_margin(request):
     if request.method == 'POST':
         try:
+            client = get_clickhouse_client()
             # Ensure the table exists
             client.command("""
                 CREATE TABLE IF NOT EXISTS start_stop_table (
@@ -746,6 +727,7 @@ def profit_and_loss_margin(request):
 def get_profit_and_loss_margin(request):
     if request.method == 'GET':
         try:
+            client = get_clickhouse_client()
             email = request.query_params.get('email')
 
             if not email:
@@ -758,8 +740,8 @@ def get_profit_and_loss_margin(request):
             """)
             
             if result :
-                row_data = result.result_set
-                return JsonResponse({"data": row_data}, status=200)
+                data = result.result_set[0]
+                return JsonResponse({"data": data}, status=200)
             else:
                 return JsonResponse({"error": "email not found"}, status=404)
 

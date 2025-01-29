@@ -37,10 +37,11 @@ urlpatterns = [
 
     # bot setings
     path('save-strategy/',save_token_and_strategy, name='save_token_and_strategy' ),
+    path('save_symbols/', save_symbols, name='save_symbols' ),
     path('update-trading/', update_trading_status, name='update_trading_status'),
     path('Get-start-time/', get_start_time, name='get_start_time'),
     path('choosen-strategy/', get_strategy, name='get_strategy' ),
-    path('save_symbols/', save_symbols, name='save_symbols' ),
+   
     path('get_symbols/', get_symbol, name='get_symbol' ),
     path('delete_symbols/', delete_symbol, name='delete_symbol' ),
     path('save_risks/', save_risks, name='save_risks' ),

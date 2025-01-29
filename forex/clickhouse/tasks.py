@@ -251,7 +251,7 @@ async def store_candle_in_clickhouse(candle, table_name, cat_timezone):
             INSERT INTO {table_name} (timestamp, open, high, low, close)
             VALUES ('{timestamp_utc}', {open_price}, {high_price}, {low_price}, {close_price})
         """
-        client.command(insert_query)
+        # client.command(insert_query)
         print(f"[{timestamp_cat}] Candle stored: Open: {open_price}, Close: {close_price} in {table_name}")
     except Exception as e:
         print(f"Error storing candle: {e}")

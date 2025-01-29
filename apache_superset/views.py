@@ -1,45 +1,62 @@
+import requests
 from django.http import JsonResponse
-from django.contrib.auth.decorators import login_required
-from dotenv import load_dotenv
-import os
-import jwt
+from django.views.decorators.csrf import csrf_exempt
+import json
 
-# Load environment variables from .env file
-load_dotenv()
+SUPERTSET_LOGIN_URL = "http://109.74.196.98:8088/api/v1/security/login" 
 
-PRIVATE_KEY = os.getenv('PRIVATE_KEY_CONTENT')
-key_id = "3dfea0d265190fe0"  # Key ID from the Preset UI
+SUPERTSET_USERNAME = "admin"
+SUPERTSET_PASSWORD = "forex123forex#"  
 
+@csrf_exempt 
 def get_guest_token(request):
-    """
-    Generates a guest token to be used by the Preset SDK.
-    """
-
-    # Payload to encode
-    payload = {
-        "user": { 
-            "username": "Daniel Wame",
-            "first_name": "Daniel",
-            "last_name": "Wame"
-        },
-        "resources": [  # Specify the dashboard(s) the user should have access to
-            {"type": "dashboard", "id": "afe0ee9c-4bda-4694-8877-eca384df8ffb"}
-        ],
-        "rls_rules": [  # RLS rules that should be applied
-            {"dataset": 16, "clause": "environment = 'production'"},
-            {"dataset": 42, "clause": "state = 'published'"}
-        ],
-        "type": "guest",
-        "aud": "970dc793",  # The Workspace ID
+    # Prepare login data
+    login_data = {
+        "username": SUPERTSET_USERNAME,
+        "password": SUPERTSET_PASSWORD,
+        "provider": "db", 
+        "refresh": True,
     }
 
-    # Encode the JWT
-    encoded_jwt = jwt.encode(
-        payload,
-        PRIVATE_KEY,
-        algorithm="RS256",
-        headers={"kid": key_id}
-    )
+    # Make POST request to login to Superset and get the token
+    response = requests.post(SUPERTSET_LOGIN_URL, json=login_data)
 
-    # Return the token as a JSON response
-    return JsonResponse({"guest_token": encoded_jwt})
+    if response.status_code == 200:
+        # Parse the access token from the response
+        access_token = response.json().get("access_token")
+        print(access_token)
+        encoded_jwt =  get_guest_token_for_dashboard(access_token)
+        return JsonResponse({"guest_token": encoded_jwt})
+    else:
+        return JsonResponse({"error": "Failed to authenticate with Superset", "message": response.text})
+
+def get_guest_token_for_dashboard(access_token):
+    dashboard_id= "e6eba5a8-905a-49ec-8bc9-e3d3c4dfc7db"
+    url = "http://109.74.196.98:8088/api/v1/security/guest_token/"
+    response = requests.post(
+        url,
+        data=json.dumps(
+            {
+                "user": {
+                    "username": "guest",
+                    "first_name": "daniel",
+                    "last_name": "wame",
+                },
+                "resources": [
+                    {
+                        "type": "dashboard",
+                        "id": dashboard_id,
+                    }
+                ],
+                "rls": [],
+            }
+        ),
+        headers={
+            "Authorization": f"Bearer {access_token}",
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        }
+    )
+    response_json = response.json()
+  
+    return response_json.get("token")

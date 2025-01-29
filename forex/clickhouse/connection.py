@@ -15,9 +15,9 @@ def get_clickhouse_client():
             host='109.74.196.98',
             port = '8123',
             user='default',
-            database='forex_data',
-            # password='#00forexd4h',
-            secure=False
+            password='#00forexd4h',
+            database='forex_data'
+            # secure=True
         )
         print(f"Result:", _clickhouse_client.query("SELECT 1").result_set[0][0])
         print(f"{GREEN }Successfully connected to ClickHouse!{RESET}")
