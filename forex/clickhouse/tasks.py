@@ -6,7 +6,10 @@ import pytz  # Import pytz for timezone handling
 import asyncio
 import threading
 from analysis_module.main import main 
+import logging
 
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 # fetching Uero/usd
 async def fetch_and_store_candles():
     """
@@ -252,9 +255,9 @@ async def store_candle_in_clickhouse(candle, table_name, cat_timezone):
             VALUES ('{timestamp_cat}', {open_price}, {high_price}, {low_price}, {close_price})
         """
         client.command(insert_query)
-        print(f"[{timestamp_cat}] Candle stored: Open: {open_price}, Close: {close_price} in {table_name}")
+        logger.info(f"[{timestamp_cat}] Candle stored: Open: {open_price}, Close: {close_price} in {table_name}")
     except Exception as e:
-        print(f"Error storing candle: {e}")
+        logger.info(f"Error storing candle: {e}")
 
 # startimg candle fetching automatically
 def start_candle_fetcher():
