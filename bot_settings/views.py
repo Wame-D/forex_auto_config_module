@@ -3,6 +3,7 @@ from django.views.decorators.csrf import csrf_exempt
 import json
 from forex.clickhouse.connection import get_clickhouse_client
 from datetime import datetime, date 
+import pytz
 
 # Initialize ClickHouse client
 client = get_clickhouse_client()
@@ -744,6 +745,146 @@ def get_profit_and_loss_margin(request):
                 return JsonResponse({"data": data}, status=200)
             else:
                 return JsonResponse({"error": "email not found"}, status=404)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid HTTP method"}, status=405)
+
+"""
+Get candles from backend
+"""
+class SymbolSerializer(serializers.Serializer):
+    symbol = serializers.CharField(max_length=10)
+    
+@swagger_auto_schema(
+    method='GET',
+    query_serializer=SymbolSerializer,  # Use query_serializer for GET requests
+    responses={200: openapi.Response('Success')}
+)
+@api_view(['GET'])
+@csrf_exempt
+def get_candles(request):
+    if request.method == 'GET':
+        try:
+            client = get_clickhouse_client()
+            # Access query parameters
+            symbol = request.query_params.get('symbol')
+
+            if not symbol:
+                return JsonResponse({"error": "symbol is required"}, status=400)
+
+            # Fetch the start_time from the database
+            result = client.query(f"""
+                WITH ranked_data AS (
+                SELECT 
+                    toTimeZone(timestamp, 'Africa/Maputo') AS timestamp, 
+                    open, 
+                    high, 
+                    low, 
+                    close,
+                    ROW_NUMBER() OVER (PARTITION BY timestamp ORDER BY timestamp ASC) AS rn
+                FROM {symbol}
+                WHERE timestamp <= toTimeZone(now(), 'Africa/Maputo') -- Filter up to current time in CAT
+            )
+            SELECT timestamp, open, high, low, close
+            FROM ranked_data
+            WHERE rn = 1
+            ORDER BY timestamp ASC
+            LIMIT 10000000
+            """)
+
+
+            if result:
+                data = result.result_set
+                # print(data)
+                cat_timezone = pytz.timezone('Africa/Harare')
+
+                formatted_data = []
+                for entry in data:
+                    dt_naive = datetime.strptime(entry[0].strftime("%Y-%m-%d %H:%M:%S"), "%Y-%m-%d %H:%M:%S")
+
+                    # Attach the CAT timezone to the datetime object
+                    dt_cat = cat_timezone.localize(dt_naive)
+
+                    # Convert the timezone-aware datetime to a Unix timestamp
+                    timestamp = int(dt_cat.timestamp())
+
+                    formatted_data.append({
+                        "time": timestamp,
+                        "open": entry[1],
+                        "high": entry[2],
+                        "low": entry[3],
+                        "close": entry[4],
+                    })
+
+                # Converting to JSON format for use in chat
+                json_data = json.dumps(formatted_data, indent=4)
+                print(json_data)
+                return JsonResponse({"data": json_data}, status=200)
+            else:
+                return JsonResponse({"error": "Token not found"}, status=404)
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
+
+    return JsonResponse({"error": "Invalid HTTP method"}, status=405)
+
+@swagger_auto_schema(
+    method='GET',
+    query_serializer=SymbolSerializer,  # Use query_serializer for GET requests
+    responses={200: openapi.Response('Success')}
+)
+@api_view(['GET'])
+@csrf_exempt
+def get_latest_candle(request):
+    if request.method == 'GET':
+        try:
+            client = get_clickhouse_client()
+            # Access query parameters
+            symbol = request.query_params.get('symbol')
+
+            if not symbol:
+                return JsonResponse({"error": "Symbol is required"}, status=400)
+
+            # Fetch the latest candle from the database
+            result = client.query(f"""
+                SELECT 
+                    toTimeZone(timestamp, 'Africa/Harare') AS timestamp, 
+                    open, 
+                    high, 
+                    low, 
+                    close
+                FROM {symbol}
+                ORDER BY timestamp DESC
+                LIMIT 1
+            """)
+
+            if result:
+                data = result.result_set
+                if data:
+                    entry = data[0]  # Get the first (and only) row
+
+                    # Convert the timestamp to a Unix timestamp
+                    dt_naive = datetime.strptime(entry[0].strftime("%Y-%m-%d %H:%M:%S"), "%Y-%m-%d %H:%M:%S")
+                    cat_timezone = pytz.timezone('Africa/Maputo')
+                    dt_cat = cat_timezone.localize(dt_naive)
+                    timestamp = int(dt_cat.timestamp())
+
+                    # Format the candle data
+                    candle = {
+                        "time": timestamp,
+                        "open": entry[1],
+                        "high": entry[2],
+                        "low": entry[3],
+                        "close": entry[4],
+                    }
+
+                    return JsonResponse({"data": candle}, status=200)
+                else:
+                    return JsonResponse({"error": "No data found"}, status=404)
+            else:
+                return JsonResponse({"error": "Query failed"}, status=500)
 
         except Exception as e:
             return JsonResponse({"error": str(e)}, status=500)
