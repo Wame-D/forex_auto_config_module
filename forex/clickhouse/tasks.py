@@ -14,6 +14,13 @@ CAT_TIMEZONE = pytz.timezone("Africa/Harare")  # Central Africa Time for timesta
 RETRY_ATTEMPTS = 5  # Number of retry attempts in case of failure
 RETRY_DELAY = 5  # Delay between retry attempts (in seconds)
 
+RED = '\033[91m'
+GREEN = '\033[92m'
+YELLOW = '\033[93m'
+BLUE = '\033[94m'
+RESET = '\033[0m' 
+
+
 # Define a dictionary to map symbols to table names dynamically
 symbols_and_tables = {
         "frxEURUSD": "eurousd_candles",
@@ -99,8 +106,8 @@ async def store_candles_in_clickhouse(candles, table_name, aligned_time):
             values.append(f"('{timestamp_utc}', {open_price}, {high_price}, {low_price}, {close_price})")
 
             # Print details of the candle with open, high, low, close prices, and aligned time
-            print(f"[{aligned_time}] Candles stored in table {table_name}: "
-                  f"[Open: {open_price}, High: {high_price}, Low: {low_price}, Close: {close_price}]")
+            print(f"{GREEN}[{aligned_time}] Candles stored in table {table_name}: "
+                  f"[Open: {open_price}, High: {high_price}, Low: {low_price}, Close: {close_price}]{RESET}")
 
         insert_query += ", ".join(values)
         client.command(insert_query)
