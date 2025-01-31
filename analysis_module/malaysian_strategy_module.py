@@ -2,7 +2,7 @@ import logging
 from datetime import timedelta
 from typing import List, Dict, Any
 from .risk_management import calculate_stop_loss, calculate_take_profit
-from .constants import DEFAULT_BUFFER_PIPS, PIP_VALUE, HIGH_RISK_RATIO, LOW_RISK_RATIO, GREEN, YELLOW, BLUE, RESET
+from .constants import DEFAULT_BUFFER_PIPS, HIGH_RISK_RATIO, LOW_RISK_RATIO, GREEN, YELLOW, BLUE, RESET
 
 # Configure logging
 logger = logging.getLogger(__name__)

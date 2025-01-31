@@ -68,7 +68,7 @@ def get_candles(table_name):
         result = client.query(f"""
             SELECT * 
             FROM {table_name} 
-            WHERE timestamp >= now() - INTERVAL 24 HOUR 
+            WHERE timestamp >= now() - INTERVAL 816 HOUR 
             ORDER BY timestamp
         """)
 

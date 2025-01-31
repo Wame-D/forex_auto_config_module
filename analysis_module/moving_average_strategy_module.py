@@ -1,150 +1,216 @@
-from datetime import timedelta
+from datetime import datetime
 from typing import List, Dict, Any
-from .risk_management import calculate_stop_loss, calculate_take_profit
-from .constants import ATR_PERIOD, ADX_THRESHOLD, HIGH_RISK_RATIO
+import logging
+from .constants import MOVING_AVERAGE_PERIODS, ATR_PERIOD, REWARD_TO_RISK_RATIO
 
+# Configure logging
+logger = logging.getLogger(__name__)
+logging.basicConfig(level=logging.INFO)
 
-def moving_average_strategy(candles_4h: List[Dict[str, Any]], candles_30m: List[Dict[str, Any]],symbol: str) -> List[Dict[str, Any]]:
-    """Simplified moving average strategy with trend and volatility confirmation."""
-    signals = []
-
+def calculate_moving_averages(candles: List[Dict[str, Any]], index: int, periods: Dict[str, int]) -> Dict[str, float]:
+    """
+    Calculate moving averages for given periods.
+    
+    Parameters:
+        candles (List[Dict[str, Any]]): List of candlestick data containing 'close' prices.
+        index (int): Current index in the candlestick list.
+        periods (Dict[str, int]): Dictionary mapping period names to their lengths (e.g., "short": 7).
+        
+    Returns:
+        Dict[str, float]: Dictionary of calculated moving averages for each period.
+    """
     try:
-        for i in range(1, len(candles_4h)):
-            current_candle = candles_4h[i]
-            prev_candle = candles_4h[i - 1]
-            entry_price = current_candle["close"]
-            pair = symbol
+        # Calculate moving averages only if sufficient data is available
+        ma = {
+            period: sum(candle["close"] for candle in candles[max(0, index - length):index]) / length
+            for period, length in periods.items()
+            if index >= length  # Ensure there's enough data for the period
+        }
+        logger.info(f"Moving averages calculated at index {index}: {ma}")
+        return ma
+    except Exception as e:
+        logger.error(f"Error calculating moving averages: {e}")
+        return {}
 
-            # Calculate Moving Averages (7, 14, 89, 200 periods)
-            short_ma, mid_ma, long_ma, long_term_ma = calculate_moving_averages(candles_4h, i)
-
-            # Check for trend alignment (Moving Averages)
-            signal_type = get_trend_signal(short_ma, mid_ma, long_ma, long_term_ma)
-            if not signal_type:
-                continue
-
-            # Calculate ATR for volatility
-            atr = calculate_atr(candles_4h, ATR_PERIOD)
-
-            # Skip trades in choppy markets (ADX < 20)
-            if calculate_adx(candles_4h, ATR_PERIOD) < ADX_THRESHOLD:
-                continue
-
-            # Validate Safe Zone based on ATR
-            safe_zone_data = calculate_safe_zone(current_candle, signal_type, atr)
-
-            # Validate price action on 30-minute chart
-            if not is_valid_price_action(candles_30m, current_candle, signal_type, safe_zone_data, atr):
-                continue
-
-            # Calculate Stop Loss and Take Profit based on ATR
-            stop_loss, take_profit = calculate_sl_tp(entry_price, signal_type, atr)
-
-            if stop_loss == entry_price or take_profit == entry_price:
-                continue
-
-            # Create and append the trading signal
-            signals.append(create_signal(pair, signal_type, entry_price, stop_loss, take_profit))
-
-        return signals
-
-    except Exception:
-        return []
-
-
-def calculate_moving_averages(candles: List[Dict[str, Any]], index: int) -> tuple:
-    """Calculate short, mid, long, and long-term moving averages."""
-    short_ma = sum(candle["close"] for candle in candles[max(0, index - 7):index]) / 7
-    mid_ma = sum(candle["close"] for candle in candles[max(0, index - 14):index]) / 14
-    long_ma = sum(candle["close"] for candle in candles[max(0, index - 89):index]) / 89
-    long_term_ma = sum(candle["close"] for candle in candles[max(0, index - 200):index]) / 200
-    return short_ma, mid_ma, long_ma, long_term_ma
-
-
-def get_trend_signal(short_ma: float, mid_ma: float, long_ma: float, long_term_ma: float) -> str:
-    """Return 'Buy' or 'Sell' signal based on trend alignment."""
-    if short_ma > mid_ma > long_ma > long_term_ma:
-        return "Buy"
-    elif short_ma < mid_ma < long_ma < long_term_ma:
-        return "Sell"
-    return ""
-
-
-def calculate_atr(candles: List[Dict[str, Any]], period: int) -> float:
-    """Calculate Average True Range (ATR) for volatility-based risk management."""
-    tr_values = [
-        max(candle["high"] - candle["low"], abs(candle["high"] - candles[i - 1]["close"]),
-            abs(candle["low"] - candles[i - 1]["close"]))
-        for i, candle in enumerate(candles[1:], 1)
-    ]
-    return sum(tr_values[-period:]) / period
-
-
-def calculate_adx(candles: List[Dict[str, Any]], period: int) -> float:
-    """Calculate Average Directional Index (ADX) to measure trend strength."""
+def check_crossover(prev_ma: Dict[str, float], curr_ma: Dict[str, float]) -> str:
+    """
+    Check for crossovers between moving averages to generate buy/sell signals.
+    
+    Buy Signal:
+        - 7-period MA crosses above 14-period MA.
+        - 89-period MA crosses above 200-period MA.
+    
+    Sell Signal:
+        - 7-period MA crosses below 14-period MA.
+        - 89-period MA crosses below 200-period MA.
+    
+    Parameters:
+        prev_ma (Dict[str, float]): Moving averages from the previous candle.
+        curr_ma (Dict[str, float]): Moving averages from the current candle.
+        
+    Returns:
+        str: "Buy", "Sell", or an empty string if no crossover is detected.
+    """
     try:
-        dm_plus, dm_minus, tr = get_directional_movement(candles)
-        smoothed_dm_plus = sum(dm_plus[-period:]) / period
-        smoothed_dm_minus = sum(dm_minus[-period:]) / period
-        smoothed_tr = sum(tr[-period:]) / period
-        return 100 * abs(smoothed_dm_plus - smoothed_dm_minus) / smoothed_tr if smoothed_tr else 0
-    except Exception:
+        # Check for Buy signal
+        if (prev_ma.get("short", 0) < prev_ma.get("mid", 0) and curr_ma.get("short", 0) > curr_ma.get("mid", 0)) and \
+           (prev_ma.get("long", 0) < prev_ma.get("very_long", 0) and curr_ma.get("long", 0) > curr_ma.get("very_long", 0)):
+            logger.info("Buy signal detected: 7-period MA crossed above 14-period MA, and 89-period MA crossed above 200-period MA.")
+            return "Buy"
+        
+        # Check for Sell signal
+        if (prev_ma.get("short", 0) > prev_ma.get("mid", 0) and curr_ma.get("short", 0) < curr_ma.get("mid", 0)) and \
+           (prev_ma.get("long", 0) > prev_ma.get("very_long", 0) and curr_ma.get("long", 0) < curr_ma.get("very_long", 0)):
+            logger.info("Sell signal detected: 7-period MA crossed below 14-period MA, and 89-period MA crossed below 200-period MA.")
+            return "Sell"
+        
+        logger.debug("No crossover signal detected.")
+        return ""
+    except Exception as e:
+        logger.error(f"Error checking crossovers: {e}")
+        return ""
+
+def calculate_atr(candles: List[Dict[str, Any]], index: int, atr_period: int) -> float:
+    """
+    Calculate the Average True Range (ATR) over the specified period.
+    
+    Parameters:
+        candles (List[Dict[str, Any]]): List of candlestick data containing 'high', 'low', and 'close' prices.
+        index (int): Current index in the candlestick list.
+        atr_period (int): Number of periods to calculate ATR.
+        
+    Returns:
+        float: Calculated ATR value, or 0 if insufficient data is available.
+    """
+    try:
+        if index < atr_period:
+            logger.debug(f"Insufficient data for ATR calculation at index {index}.")
+            return 0
+        
+        # Calculate True Range for each period
+        true_ranges = [
+            max(
+                candles[i]["high"] - candles[i]["low"],  # High - Low
+                abs(candles[i]["high"] - candles[i - 1]["close"]),  # High - Previous Close
+                abs(candles[i]["low"] - candles[i - 1]["close"])  # Low - Previous Close
+            )
+            for i in range(index - atr_period, index)
+        ]
+        
+        # Calculate ATR as the average of True Ranges
+        atr = sum(true_ranges) / atr_period
+        logger.info(f"ATR calculated at index {index}: {atr}")
+        return atr
+    except Exception as e:
+        logger.error(f"Error calculating ATR: {e}")
         return 0
 
+def calculate_sl_tp(entry: float, signal_type: str, atr: float, reward_to_risk_ratio: float) -> Dict[str, float]:
+    """
+    Calculate Stop Loss (SL) and Take Profit (TP) levels based on ATR.
+    
+    Parameters:
+        entry (float): Entry price for the trade.
+        signal_type (str): "Buy" or "Sell" signal type.
+        atr (float): Calculated ATR value.
+        reward_to_risk_ratio (float): Risk-to-reward ratio for the trade.
+        
+    Returns:
+        Dict[str, float]: Dictionary containing SL and TP values.
+    """
+    try:
+        # Calculate Stop Loss based on signal type
+        sl = entry - atr if signal_type == "Buy" else entry + atr
+        
+        # Calculate Take Profit using the risk-to-reward ratio
+        tp = entry + (entry - sl) * reward_to_risk_ratio if signal_type == "Buy" else entry - (sl - entry) * reward_to_risk_ratio
+        
+        logger.info(f"SL and TP calculated: SL={sl}, TP={tp}")
+        return {"SL": round(sl, 5), "TP": round(tp, 5)}
+    except Exception as e:
+        logger.error(f"Error calculating SL/TP: {e}")
+        return {"SL": 0, "TP": 0}
 
-def get_directional_movement(candles: List[Dict[str, Any]]) -> tuple:
-    """Calculate directional movements (DM+ and DM-) and True Range (TR)."""
-    dm_plus = [candles[i]["high"] - candles[i - 1]["high"] for i in range(1, len(candles))]
-    dm_minus = [candles[i - 1]["low"] - candles[i]["low"] for i in range(1, len(candles))]
-    tr = [max(candles[i]["high"] - candles[i]["low"], abs(candles[i]["high"] - candles[i - 1]["close"]),
-              abs(candles[i]["low"] - candles[i - 1]["close"])) for i in range(1, len(candles))]
-    return dm_plus, dm_minus, tr
-
-
-def calculate_safe_zone(candle: Dict[str, Any], signal_type: str, atr: float) -> Dict[str, Any]:
-    """Calculate the safe zone for entry based on ATR."""
-    if signal_type == "Buy":
-        support_level = candle["low"]
-        safe_zone_top = support_level + (atr * 0.75)
-        safe_zone_bottom = support_level - (atr * 0.75)
-    elif signal_type == "Sell":
-        resistance_level = candle["high"]
-        safe_zone_top = resistance_level + (atr * 0.75)
-        safe_zone_bottom = resistance_level - (atr * 0.75)
-    return {"safe_zone_top": safe_zone_top, "safe_zone_bottom": safe_zone_bottom}
-
-
-def is_valid_price_action(candles: List[Dict[str, Any]], current_candle: Dict[str, Any], signal_type: str,
-                           safe_zone_data: Dict[str, Any], atr: float) -> bool:
-    """Check if price action on 30-minute chart is valid."""
-    return any(
-        is_valid_signal(candle, signal_type, safe_zone_data["safe_zone_top"], safe_zone_data["safe_zone_bottom"], atr)
-        for candle in candles if candle["timestamp"] >= current_candle["timestamp"] - timedelta(hours=2)
-    )
-
-
-def is_valid_signal(candle: Dict[str, Any], signal_type: str, safe_zone_top: float, safe_zone_bottom: float, atr: float) -> bool:
-    """Check if the signal respects the safe zone and volatility."""
-    if signal_type == "Buy":
-        return candle["low"] >= safe_zone_bottom and candle["high"] <= safe_zone_top
-    elif signal_type == "Sell":
-        return candle["high"] <= safe_zone_top and candle["low"] >= safe_zone_bottom
-    return False
-
-
-def calculate_sl_tp(entry_price: float, signal_type: str, atr: float) -> tuple:
-    """Calculate Stop Loss and Take Profit based on ATR."""
-    stop_loss = calculate_stop_loss(entry_price, signal_type, atr * 1.5)
-    take_profit = calculate_take_profit(entry_price, stop_loss, signal_type, HIGH_RISK_RATIO)
-    return stop_loss, take_profit
-
-
-def create_signal(pair: str, signal_type: str, entry_price: float, stop_loss: float, take_profit: float) -> Dict[str, Any]:
-    """Create the trading signal."""
-    return {
-        "Pair": pair,
-        "Signal": signal_type,
-        "Entry": round(entry_price, 5),
-        "SL": round(stop_loss, 5),
-        "TP": round(take_profit, 5),
-    }
+def moving_average_strategy(candles_4h: List[Dict[str, Any]], candles_30m: List[Dict[str, Any]], symbol: str) -> List[Dict[str, Any]]:
+    """
+    Moving average crossover strategy with multi-timeframe confirmation.
+    Generates highly valid signals for backtesting.
+    
+    Parameters:
+        candles_4h (List[Dict[str, Any]]): List of 4-hour candlestick data.
+        candles_30m (List[Dict[str, Any]]): List of 30-minute candlestick data.
+        symbol (str): Trading pair symbol (e.g., "EURUSD").
+        
+    Returns:
+        List[Dict[str, Any]]: List of generated trading signals.
+    """
+    logger.info("Starting moving average strategy...")
+    
+    # Check if there's sufficient data for the 200-period moving average
+    if len(candles_4h) < 200:
+        print("Insufficient data for 200-period moving average. We need Data For 30 Days Be Patient")  # Single print statement
+        return []
+    
+    signals = []
+    try:
+        # Iterate through the 4-hour candles starting from index 200 (to ensure sufficient data for 200-period MA)
+        for i in range(200, len(candles_4h)):
+            # Calculate moving averages for the 4H timeframe
+            ma_4h_prev = calculate_moving_averages(candles_4h, i - 1, MOVING_AVERAGE_PERIODS)
+            ma_4h_curr = calculate_moving_averages(candles_4h, i, MOVING_AVERAGE_PERIODS)
+            
+            # Skip if insufficient data for moving averages
+            if not ma_4h_prev or not ma_4h_curr:
+                logger.debug("Insufficient data to calculate 4H moving averages. Skipping...")
+                continue
+            
+            # Determine trend signal for the 4H timeframe
+            signal_type_4h = check_crossover(ma_4h_prev, ma_4h_curr)
+            if not signal_type_4h:
+                logger.debug(f"No valid 4H trend signal at index {i}. Skipping...")
+                continue
+            
+            # Calculate moving averages for the 30M timeframe
+            ma_30m_prev = calculate_moving_averages(candles_30m, len(candles_30m) - 2, MOVING_AVERAGE_PERIODS)
+            ma_30m_curr = calculate_moving_averages(candles_30m, len(candles_30m) - 1, MOVING_AVERAGE_PERIODS)
+            
+            # Skip if insufficient data for moving averages
+            if not ma_30m_prev or not ma_30m_curr:
+                logger.debug("Insufficient data to calculate 30M moving averages. Skipping...")
+                continue
+            
+            # Determine trend signal for the 30M timeframe
+            signal_type_30m = check_crossover(ma_30m_prev, ma_30m_curr)
+            if signal_type_4h != signal_type_30m:
+                logger.debug(f"4H and 30M signals do not match at index {i}. Skipping...")
+                continue
+            
+            # Calculate entry price and ATR
+            entry_price = candles_4h[i]["close"]
+            atr = calculate_atr(candles_4h, i, ATR_PERIOD)
+            if atr == 0:
+                logger.debug(f"Invalid ATR value at index {i}. Skipping...")
+                continue
+            
+            # Calculate Stop Loss and Take Profit levels
+            levels = calculate_sl_tp(entry_price, signal_type_4h, atr, REWARD_TO_RISK_RATIO)
+            if abs(levels["SL"] - entry_price) < 0.0001 or abs(levels["TP"] - entry_price) < 0.0001:
+                logger.debug(f"Invalid SL/TP levels at index {i}. Skipping...")
+                continue
+            
+            # Create and append the signal
+            signal = {
+                "Pair": symbol,
+                "Signal": signal_type_4h,
+                "Entry": round(entry_price, 5),
+                "SL": levels["SL"],
+                "TP": levels["TP"]
+            }
+            signals.append(signal)
+            logger.info(f"Signal generated at index {i}: {signal}")
+        
+        logger.info(f"Total signals generated: {len(signals)}")
+        return signals
+    except Exception as e:
+        logger.exception(f"Error in moving_average_strategy: {e}")
+        return []

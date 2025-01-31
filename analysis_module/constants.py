@@ -189,7 +189,7 @@ ADX_THRESHOLD:
         Adjust the threshold to identify trends in different market conditions.
 """
 
-MOVING_AVERAGES = [7, 14, 89, 200]
+MOVING_AVERAGE_PERIODS = {"short": 7, "mid": 14, "long": 89, "very_long": 200}
 """
 MOVING_AVERAGES:
     A list of moving average periods used for trend analysis. These include short-term (7, 14), 
@@ -247,7 +247,7 @@ SYMBOLS_AND_TABLES:
         Add new symbols and verify that data retrieval works as expected.
 """
 
-STRATEGY_TYPES = ["Moving Average"]
+STRATEGY_TYPES = ["Moving Average", "Malaysian"]
 """
 STRATEGY_TYPES:
     A list of supported trading strategies. Currently includes only the "Malaysian" strategy.
