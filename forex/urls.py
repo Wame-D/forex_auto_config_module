@@ -34,6 +34,7 @@ urlpatterns = [
     path('authorize/', authorize_user, name='authorize_user'),
     path('generate-guest-token/', get_guest_token, name='generate_guest_token'),
     path('notifications/', include('notifications.routes')),   
+    path('trade/', include('trade.routes')),   
 
     # bot setings
     path('save-strategy/',save_token_and_strategy, name='save_token_and_strategy' ),

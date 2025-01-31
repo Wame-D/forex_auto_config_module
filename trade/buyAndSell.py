@@ -120,6 +120,7 @@ def fxTradeMultiplier(url, token, symbol, amount, multiplier, take_profit, stop_
     try:
         ws.close()
         print("WebSocket connection closed.")
+        print(f"----------------------------------------------------------- {contract_id} token is {token} trade status : Active, amount {amount}, takeprofit = {take_profit} stoploss = {stop_loss}")
     except Exception as e:
         return {"message": f"Error closing WebSocket: {e}"}
     return {"message": f"Trade completed successfully! Here is the contract ID: {contract_id}"}

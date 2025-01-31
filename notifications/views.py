@@ -7,13 +7,9 @@ from datetime import datetime
 MESSAGE_TEMPLATES = {
     "trade_entry": "The bot has entered a trade on {date_time}.",
     "trade_profit": "Congratulations! Your trade closed in profit on {date_time}. You have made a profit of ${trade_profit}.",
-    "trade_loss": "Unfortunately, your trade closed at a loss on {date_time}. You have lost ${trade_loss}. Remember to analyze and adjust your strategy.",
-    "margin_call": "Warning! Your margin level is low as of {date_time}. Please check your account to avoid liquidation.",
-    "stop_loss_hit": "Your stop-loss was triggered on {date_time}, and the trade has been closed. Review your risk management.",
+    "trade_loss": "Unfortunately, your trade closed at a loss on {date_time}. You have lost ${trade_loss}. ",
+    "stop_loss_hit": "Your stop-loss was triggered on {date_time}, and the trade has been closed.",
     "take_profit_hit": "Your take-profit level was reached on {date_time}, and the trade closed in profit.",
-    "news_alert": "Important market news is affecting volatility as of {date_time}. Be cautious with open positions.",
-    "withdrawal_success": "Your withdrawal request was processed successfully on {date_time}.",
-    "deposit_success": "Your deposit was received and credited to your account on {date_time}.",
 }
 
 # Function to send an email notification
