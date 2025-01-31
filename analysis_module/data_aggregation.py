@@ -47,7 +47,7 @@ def aggregate_data(candles: List[Dict[str, Any]], timeframe: str) -> List[Dict[s
         if current_candle:
             aggregated.append(current_candle)
 
-        logger.info(f"Successfully aggregated {len(aggregated)} candles for {timeframe}.")
+        # logger.info(f"Successfully aggregated {len(aggregated)} candles for {timeframe}.")
         return aggregated
     except Exception as e:
         logger.exception(f"Error aggregating data: {e}")

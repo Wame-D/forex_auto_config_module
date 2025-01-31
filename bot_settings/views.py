@@ -791,7 +791,6 @@ def get_candles(request):
             FROM ranked_data
             WHERE rn = 1
             ORDER BY timestamp ASC
-            LIMIT 10000000
             """)
 
 
@@ -820,7 +819,7 @@ def get_candles(request):
 
                 # Converting to JSON format for use in chat
                 json_data = json.dumps(formatted_data, indent=4)
-                print(json_data)
+                # print(json_data)
                 return JsonResponse({"data": json_data}, status=200)
             else:
                 return JsonResponse({"error": "Token not found"}, status=404)

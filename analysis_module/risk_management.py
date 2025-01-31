@@ -42,7 +42,7 @@ def calculate_stop_loss(entry_price: float, signal_type: str, buffer_pips: int) 
     elif signal_type == "Sell":
         stop_loss = round(entry_price + buffer, 5)
     else:
-        logger.error("Invalid signal type. Must be 'Buy' or 'Sell'.")
+        # logger.error("Invalid signal type. Must be 'Buy' or 'Sell'.")
         raise ValueError("Invalid signal type. Must be 'Buy' or 'Sell'.")
     
     logger.info(f"Calculated stop loss: {stop_loss}")
