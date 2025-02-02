@@ -62,7 +62,7 @@ async def testContract(request):
     """
     Django async view to fetch contract updates and display them as HTML.
     """
-    contract_id = '271123233448'
+    contract_id = '271248758548'
     app_id = "65102"
     api_token = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"
 

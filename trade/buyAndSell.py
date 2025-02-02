@@ -135,7 +135,6 @@ def fxTradeMultiplier(url, token, symbol, amount, multiplier, take_profit, stop_
                 take_profit Nullable(Float32),
                 stop_loss Nullable(Float32),
                 contract_type Nullable(String),
-                buy_time Nullable(DateTime),
                 sell_time Nullable(DateTime),
                 buy_price Nullable(Float32),
                 sell_price Nullable(Float32),
