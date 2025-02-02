@@ -101,7 +101,6 @@ async def save_signals_to_clickhouse(signals: List[Dict[str, Any]]) -> bool:
                     VALUES (NOW(), '{signal['Pair']}', '{signal['Signal']}', {signal['Entry']}, {signal['SL']}, {signal['TP']})
                 """
                 client.command(insert_query)
-                print(signal)
                 logger.info(f"Signal stored: {signal}")
             except Exception as e:
                 logger.error(f"Failed to store signal: {signal}. Error: {e}")
@@ -153,7 +152,7 @@ async def prepare_trading(signals: List[Dict[str, Any]], strategy_type: List[str
                         risk_amount = await calculate_risk(token, signal['Entry'], signal['SL'])
                         if risk_amount > 0:
                             logger.info(f"{YELLOW}Placing {signal['Signal']} trade for {symbol} with risk amount {risk_amount}.{RESET}")
-                            # executeTrade(token, risk_amount, signal['TP'], signal['SL'], symbol)
+                            executeTrade(token, risk_amount, signal['TP'], signal['SL'], symbol)
                             logger.info(f"{GREEN}{signal['Signal']} trade executed successfully.{RESET}")
                         else:
                             logger.warning(f"Risk amount too low for token {token}. Trade skipped.")
@@ -204,7 +203,7 @@ async def process_symbol(symbol: str, table_name: str) -> Optional[List[Dict[str
             # Save signals to ClickHouse and prepare trades
             if await save_signals_to_clickhouse(signals):
                 logger.info(f"{GREEN}Signals saved successfully for {symbol}.{RESET}")
-                print("Check this line to configure trade!!!! ASAP Line 208 and Method 70")
+                # print("Check this line to configure trade!!!! ASAP Line 208 and Method 70")
                 # await prepare_trading(signals, STRATEGY_TYPES, symbol)
             else:
                 logger.error(f"Failed to save signals to ClickHouse for {symbol}.")
