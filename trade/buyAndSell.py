@@ -124,6 +124,9 @@ def fxTradeMultiplier(url, token, symbol, amount, multiplier, take_profit, stop_
         print("WebSocket connection closed.")
         # Connect to ClickHouse and create the table if it doesn't exist
         client = get_clickhouse_client()
+       
+        # drop_table_query = "DROP TABLE IF EXISTS trades;"
+        # client.command(drop_table_query)
         create_table_query = f"""
             CREATE TABLE IF NOT EXISTS trades (
                 timestamp Nullable(DateTime),
@@ -149,8 +152,8 @@ def fxTradeMultiplier(url, token, symbol, amount, multiplier, take_profit, stop_
 
         # Insert the candle into the table
         insert_query = f"""
-            INSERT INTO trades (contract_id, token, trade_status, symbol, amount, take_profit, stop_loss,timestamp)
-            VALUES ({contract_id}, '{token}', 'active', '{symbol}', {amount}, {take_profit}, {stop_loss}, NOW());
+            INSERT INTO trades (contract_id, token, trade_status, symbol, amount, take_profit, stop_loss,timestamp,currency,contract_type,multiplier)
+            VALUES ({contract_id}, '{token}', 'active', '{symbol}', {amount}, {take_profit}, {stop_loss}, NOW(),'usd','MULTUP',{multiplier});
         """
         client.command(insert_query)
         print(f"----------------------------------------------------------- {contract_id} token is {token} trade status : Active, amount {amount}, takeprofit = {take_profit} stoploss = {stop_loss}")

@@ -4,7 +4,7 @@ from websocket import create_connection
 from deriv_api import DerivAPI
 from forex.clickhouse.connection import get_clickhouse_client
 
-def update_trade_status(contract_id, trade_status, sell_time, sell_price, profit_loss):
+def update_trade_status(contract_id, trade_status, sell_time, sell_price, profit_loss, buy_price):
     """Updates the trade status and additional fields in the ClickHouse database."""
     try:
         client = get_clickhouse_client()
@@ -13,11 +13,12 @@ def update_trade_status(contract_id, trade_status, sell_time, sell_price, profit
                 trade_status = '{trade_status}',
                 sell_time = '{sell_time}',
                 sell_price = {sell_price},
-                profit_loss = {profit_loss}
+                profit_loss = {profit_loss},
+                buy_price = {buy_price}
             WHERE contract_id = {contract_id};
         '''
         client.command(update_query)
-        print(f"Trade {contract_id} updated to status: {trade_status}, sell_price: {sell_price}, profit/loss: {profit_loss}")
+        print(f"Trade {contract_id} updated to status: {trade_status}, buy_price: {buy_price}, sell_price: {sell_price}, profit/loss: {profit_loss}")
     except Exception as e:
         print(f"Failed to update trade status: {e}")
 
@@ -40,12 +41,15 @@ async def fetch_contract_updates(contract_id, api_token, app_id):
                 contract_details = response.get("proposal_open_contract", {})
                 print(f"Contract details for ID {contract_id}:", json.dumps(contract_details, indent=4))
 
+                buy_price = contract_details.get("buy_price", 0.0)  # Extract buy price
+
                 if contract_details.get("is_sold") == 1 or contract_details.get("status") == "sold":
                     print("Contract has ended. Updating database...")
                     sell_time = contract_details.get("sell_time", "N/A")
                     sell_price = contract_details.get("sell_price", 0.0)
                     profit_loss = contract_details.get("profit", 0.0)
-                    update_trade_status(contract_id, "complete", sell_time, sell_price, profit_loss)
+                    
+                    update_trade_status(contract_id, "complete", sell_time, sell_price, profit_loss, buy_price)
                     break
             
             except Exception as e:
