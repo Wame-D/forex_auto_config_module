@@ -7,6 +7,8 @@ import websockets
 import json
 from websocket import create_connection
 from deriv_api import DerivAPI
+from forex.clickhouse.connection import get_clickhouse_client
+
 
 
 
@@ -120,6 +122,41 @@ def fxTradeMultiplier(url, token, symbol, amount, multiplier, take_profit, stop_
     try:
         ws.close()
         print("WebSocket connection closed.")
+        # Connect to ClickHouse and create the table if it doesn't exist
+        client = get_clickhouse_client()
+       
+        # drop_table_query = "DROP TABLE IF EXISTS trades;"
+        # client.command(drop_table_query)
+        create_table_query = f"""
+            CREATE TABLE IF NOT EXISTS trades (
+                timestamp Nullable(DateTime),
+                contract_id Int128,  -- Required (not nullable)
+                token Nullable(String),
+                trade_status Nullable(String),
+                symbol Nullable(String),
+                amount Nullable(Float32),
+                take_profit Nullable(Float32),
+                stop_loss Nullable(Float32),
+                contract_type Nullable(String),
+                sell_time Nullable(DateTime),
+                buy_price Nullable(Float32),
+                sell_price Nullable(Float32),
+                profit_loss Nullable(Float32),
+                currency Nullable(String),
+                multiplier Nullable(Float32)
+            ) ENGINE = MergeTree()
+            ORDER BY contract_id;
+        """
+
+        client.command(create_table_query)
+
+        # Insert the candle into the table
+        insert_query = f"""
+            INSERT INTO trades (contract_id, token, trade_status, symbol, amount, take_profit, stop_loss,timestamp,currency,contract_type,multiplier)
+            VALUES ({contract_id}, '{token}', 'active', '{symbol}', {amount}, {take_profit}, {stop_loss}, NOW(),'usd','MULTUP',{multiplier});
+        """
+        client.command(insert_query)
+        print(f"----------------------------------------------------------- {contract_id} token is {token} trade status : Active, amount {amount}, takeprofit = {take_profit} stoploss = {stop_loss}")
     except Exception as e:
         return {"message": f"Error closing WebSocket: {e}"}
     return {"message": f"Trade completed successfully! Here is the contract ID: {contract_id}"}

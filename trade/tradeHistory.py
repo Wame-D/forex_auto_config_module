@@ -13,7 +13,7 @@ from rest_framework.decorators import api_view
 #     )
 # )
 # Authenticate
-async def fetch_profit_table(token, options=None):
+async def fetch_profit_table(token, limit):
     """
     Fetch the Profit Table from the Deriv API and calculate trade statistics.
 
@@ -28,7 +28,7 @@ async def fetch_profit_table(token, options=None):
     """
     # Default options
     options = options or {}
-    limit = options.get("limit", 50)
+    limit = options.get("limit", {limit})
     sort = options.get("sort", "DESC")
     description = 1 if options.get("description", False) else 0
     date_from = options.get("date_from", "")
