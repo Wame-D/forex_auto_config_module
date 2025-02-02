@@ -2,29 +2,18 @@ import logging
 from datetime import timedelta
 from typing import List, Dict, Any
 from .risk_management import calculate_stop_loss, calculate_take_profit
-from .constants import DEFAULT_BUFFER_PIPS, EXOTIC_PAIRS, PIP_VALUE, HIGH_RISK_RATIO, LOW_RISK_RATIO
-from .strategy import  moving_average_strategy
-# Set up logging
+from .constants import DEFAULT_BUFFER_PIPS, HIGH_RISK_RATIO, LOW_RISK_RATIO, GREEN, YELLOW, BLUE, RESET
+
+# Configure logging
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
-GREEN = '\033[92m'
-RESET = '\033[0m'  
-
-def is_price_within_safe_zone(
-    candle: Dict[str, Any], signal_type: str, safe_zone_top: float, safe_zone_bottom: float
-) -> bool:
-    """Check if the price is within the defined safe zone."""
-    try:
-        if signal_type == "Buy":
-            return safe_zone_bottom <= candle["low"] <= safe_zone_top
-        elif signal_type == "Sell":
-            return safe_zone_bottom <= candle["high"] <= safe_zone_top
-    except KeyError as e:
-        logger.error(f"Missing key in candle data: {e}")
-    return False
 
 def has_reversal_pattern(candle: Dict[str, Any], signal_type: str) -> bool:
-    """Check if a reversal pattern exists (bullish for Buy, bearish for Sell)."""
+    """
+    Check if a reversal pattern exists in the candle data.
+    - For a Buy signal, the candle should close higher than it opened (bullish).
+    - For a Sell signal, the candle should close lower than it opened (bearish).
+    """
     try:
         if signal_type == "Buy" and candle["close"] > candle["open"]:
             return True
@@ -35,41 +24,63 @@ def has_reversal_pattern(candle: Dict[str, Any], signal_type: str) -> bool:
     return False
 
 def validate_small_support_resistance(
-    candles_15m: List[Dict[str, Any]], signal_type: str, safe_zone_top: float, safe_zone_bottom: float
+    candles_15m: List[Dict[str, Any]], signal_type: str
 ) -> bool:
-    """Validate small support or resistance levels within the safe zone on the 15-minute chart."""
+    """
+    Validate small support or resistance levels on the 15-minute chart.
+    - Iterates through the 15-minute candles and checks for reversal patterns.
+    - Returns True if any candle shows a valid reversal pattern for the given signal type.
+    """
     for candle in candles_15m:
-        if is_price_within_safe_zone(candle, signal_type, safe_zone_top, safe_zone_bottom) and has_reversal_pattern(candle, signal_type):
+        if has_reversal_pattern(candle, signal_type):
             return True
     return False
 
-def get_signal_type_and_safe_zone(
+def get_signal_type(
     prev_candle: Dict[str, Any], current_candle: Dict[str, Any]
-) -> Dict[str, Any]:
-    """Identify the signal type (Buy/Sell) and calculate the safe zone based on the previous and current candles."""
+) -> str:
+    """
+    Identify the signal type (Buy/Sell) based on the previous and current candles.
+    - A Buy signal is generated if the current candle's low and close are higher than the previous candle's.
+    - A Sell signal is generated if the current candle's high and close are lower than the previous candle's.
+    """
     signal_type = None
-    safe_zone_top = None
-    safe_zone_bottom = None
 
     if prev_candle["low"] < current_candle["low"] and prev_candle["close"] < current_candle["close"]:
         signal_type = "Buy"
-        safe_zone_top = prev_candle["open"] + (2 * PIP_VALUE)
-        safe_zone_bottom = prev_candle["open"] - (2 * PIP_VALUE)
     elif prev_candle["high"] > current_candle["high"] and prev_candle["close"] > current_candle["close"]:
         signal_type = "Sell"
-        safe_zone_top = prev_candle["open"] + (2 * PIP_VALUE)
-        safe_zone_bottom = prev_candle["open"] - (2 * PIP_VALUE)
 
-    return {
-        "signal_type": signal_type,
-        "safe_zone_top": safe_zone_top,
-        "safe_zone_bottom": safe_zone_bottom,
-    }
+    return signal_type
+
+def calculate_support_resistance(
+    candles: List[Dict[str, Any]], signal_type: str
+) -> float:
+    """
+    Calculate support or resistance levels based on the candle sequence.
+    - For Buy signals, support is the low of the bearish candle.
+    - For Sell signals, resistance is the high of the bullish candle.
+    """
+    if signal_type == "Buy":
+        return min(candle["low"] for candle in candles)
+    elif signal_type == "Sell":
+        return max(candle["high"] for candle in candles)
+    return 0.0
 
 def adjust_sl_tp_within_15m(
     candles_15m: List[Dict[str, Any]], signal: Dict[str, Any]
 ) -> Dict[str, Any]:
-    """Adjust the Stop Loss (SL) and Take Profit (TP) based on the next 15 minutes' price action."""
+    """
+    Adjust the Stop Loss (SL) and Take Profit (TP) based on the next 15 minutes' price action.
+    - For Buy signals:
+      - SL is adjusted to the lowest low in the next 15 minutes.
+      - TP is adjusted to the highest high in the next 15 minutes.
+    - For Sell signals:
+      - SL is adjusted to the highest high in the next 15 minutes.
+      - TP is adjusted to the lowest low in the next 15 minutes.
+    - Recalculates TP to maintain a favorable risk-reward ratio.
+    - Ensures SL and TP are rounded to 4 decimal places.
+    """
     entry_price = signal["Entry"]
     signal_type = signal["Signal"]
     adjusted_sl = signal["SL"]
@@ -100,12 +111,21 @@ def adjust_sl_tp_within_15m(
     adjusted_sl = max(adjusted_sl, 0)
     adjusted_tp = max(adjusted_tp, 0)
 
-    signal["SL"] = round(adjusted_sl, 2)
-    signal["TP"] = round(adjusted_tp, 2)
+    # Round SL and TP to 4 decimal places to match candle prices
+    adjusted_sl = round(adjusted_sl, 4)
+    adjusted_tp = round(adjusted_tp, 4)
+
+    # Update SL and TP in the signal
+    signal["SL"] = adjusted_sl
+    signal["TP"] = adjusted_tp
     return signal
 
 def filter_perfect_signals(signals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Filters signals to retain only the ones that meet all requirements and are highly profitable."""
+    """
+    Filters signals to retain only the ones that meet all requirements and are highly profitable.
+    - Requires a minimum risk-reward ratio of 2:1.
+    - Skips signals with invalid SL or Entry values.
+    """
     filtered_signals = []
     for signal in signals:
         try:
@@ -119,10 +139,17 @@ def filter_perfect_signals(signals: List[Dict[str, Any]]) -> List[Dict[str, Any]
     logger.info(f"Filtered signals: {len(filtered_signals)} out of {len(signals)}.")
     return filtered_signals
 
-def analyze_malaysian_strategy(
-    candles_4h: List[Dict[str, Any]], candles_15m: List[Dict[str, Any]], symbol
+def malaysian_strategy(
+    candles_4h: List[Dict[str, Any]], candles_15m: List[Dict[str, Any]], symbol: str
 ) -> List[Dict[str, Any]]:
-    """Analyzes forex data using the enhanced Malaysian Forex Trading Strategy."""
+    """
+    Analyzes forex data using the enhanced Malaysian Forex Trading Strategy.
+    - Processes 4-hour candles to identify signals.
+    - Validates signals using 15-minute candles.
+    - Adjusts SL and TP based on 15-minute price action.
+    - Filters signals to retain only the most profitable ones.
+    - Ensures Entry, SL, and TP are rounded to 4 decimal places.
+    """
     logger.info("Starting analysis for Enhanced Malaysian Forex Strategy...")
     signals = []
 
@@ -133,23 +160,18 @@ def analyze_malaysian_strategy(
             entry_price = current_candle["close"]
             pair = symbol
 
-            # Skip exotic pairs
-            if pair in EXOTIC_PAIRS:
-                logger.warning(f"Skipping exotic pair: {pair}")
-                continue
-
-            # Get signal type and safe zone
-            signal_data = get_signal_type_and_safe_zone(prev_candle, current_candle)
-            signal_type = signal_data.get("signal_type")
-            safe_zone_top = signal_data.get("safe_zone_top")
-            safe_zone_bottom = signal_data.get("safe_zone_bottom")
+            # Step 1: Identify the signal type (Buy/Sell)
+            signal_type = get_signal_type(prev_candle, current_candle)
 
             if not signal_type:
-                continue
+                continue  # Skip if no signal is identified
 
-            # Validate on 15-minute chart
+            # Step 2: Calculate support/resistance levels
+            support_resistance_level = calculate_support_resistance([prev_candle, current_candle], signal_type)
+
+            # Step 3: Validate the signal on the 15-minute chart
             valid = any(
-                is_price_within_safe_zone(candle, signal_type, safe_zone_top, safe_zone_bottom)
+                has_reversal_pattern(candle, signal_type)
                 for candle in candles_15m
                 if candle["timestamp"] >= current_candle["timestamp"] - timedelta(hours=4)
             )
@@ -157,38 +179,36 @@ def analyze_malaysian_strategy(
                 logger.info(f"Signal at index {i} invalidated by 15-minute chart. Skipping...")
                 continue
 
-            # Check support/resistance on 15-minute chart
-            if not validate_small_support_resistance(candles_15m, signal_type, safe_zone_top, safe_zone_bottom):
+            # Step 4: Check for small support/resistance levels on the 15-minute chart
+            if not validate_small_support_resistance(candles_15m, signal_type):
                 logger.info(f"No support/resistance validation for signal at index {i}. Skipping...")
                 continue
 
-            # Calculate Stop Loss and Take Profit
+            # Step 5: Calculate Stop Loss and Take Profit
             stop_loss = calculate_stop_loss(entry_price, signal_type, DEFAULT_BUFFER_PIPS)
             take_profit = calculate_take_profit(entry_price, stop_loss, signal_type, LOW_RISK_RATIO)
 
-            # Validate SL and TP
+            # Step 6: Validate SL and TP
             if stop_loss == entry_price or take_profit == entry_price:
                 logger.warning(f"Invalid SL/TP values for signal at index {i}. Skipping...")
                 continue
 
-            # Create the initial signal
+            # Step 7: Create the initial signal
             signal = {
                 "Pair": pair,
                 "Signal": signal_type,
-                "Entry": round(entry_price, 2),
-                "SL": round(stop_loss, 2),
-                "TP": round(take_profit, 2),
-                "Safe Zone Top": round(safe_zone_top, 5),
-                "Safe Zone Bottom": round(safe_zone_bottom, 5),
+                "Entry": round(float(entry_price), 4),  # Round Entry to 4 decimal places
+                "SL": round(float(stop_loss), 4),       # Round SL to 4 decimal places
+                "TP": round(float(take_profit), 4),     # Round TP to 4 decimal places
             }
 
-            # Adjust SL and TP within the next 15 minutes
+            # Step 8: Adjust SL and TP within the next 15 minutes
             signal = adjust_sl_tp_within_15m(candles_15m, signal)
 
-            # Append the adjusted signal
+            # Step 9: Append the adjusted signal
             signals.append(signal)
 
-        # Filter signals to retain only perfect ones
+        # Step 10: Filter signals to retain only perfect ones
         perfect_signals = filter_perfect_signals(signals)
 
         logger.info(f"Generated {len(perfect_signals)} perfect signals.")
@@ -197,29 +217,3 @@ def analyze_malaysian_strategy(
     except Exception as e:
         logger.exception("Error during strategy analysis.")
         return []
-def analysis(
-    df_4h: List[Dict[str, Any]], df_30m: List[Dict[str, Any]], 
-    df_15m: List[Dict[str, Any]], strategy_type: List[str], symbol
-) -> List[Dict[str, Any]]:
-    """
-    Generate trading signals based on the selected strategies.
-    
-    :param df_4h: List of dicts containing data for the 4-hour time frame.
-    :param df_30m: List of dicts containing data for the 30-minute time frame.
-    :param df_15m: List of dicts containing data for the 15-minute time frame.
-    :param strategy_type: List of strategy types to use for signal generation (e.g., ["Malaysian", "Moving Average"]).
-    :return: List of trading signals based on the selected strategies.
-    """
-    signals = []
-
-    if "Malaysian" in strategy_type:
-        malaysian_signals = analyze_malaysian_strategy(df_4h, df_15m, symbol)
-        print(f"{GREEN }Malaysian Strategy Signals generet:{RESET}")  
-        signals.extend(malaysian_signals)
-
-    if "Moving Average" in strategy_type:
-        moving_avg_signals = moving_average_strategy(df_4h, df_30m)
-        print("Moving Average Strategy Signals:", moving_avg_signals)  # Debugging statement
-        signals.extend(moving_avg_signals)
-
-    return signals
