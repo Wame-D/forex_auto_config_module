@@ -72,9 +72,24 @@ MIDDLEWARE = [
 ROOT_URLCONF = 'forex.urls'
 CORS_ALLOW_ALL_ORIGINS = True
 # CORS_ALLOWED_ORIGINS = [
-#   "https://forex.xhed.net/",
-#     "https://localhost/"
+#     *
+# #   "https://forex.xhed.net/",
+# #     "https://localhost/"
 # ]
+
+# Allow frontend origin for CORS
+CORS_ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+]
+
+# Allow localhost during development
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:3000",
+]
+
+# If using Django 4.1+, use this instead:
+CSRF_TRUSTED_ORIGINS = ["http://localhost:3000"]
+
 CORS_ALLOW_HEADERS= [
     'content-type',
     'authorization',

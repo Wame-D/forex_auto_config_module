@@ -12,6 +12,7 @@ from websocket import create_connection
 from deriv_api import DerivAPI
 
 from .buyAndSell import fxTradeMultiplier, fxCloseMultiplierTrade
+from django.views.decorators.csrf import csrf_exempt
 
 
 # -----------------------------------------
@@ -57,38 +58,59 @@ def testApp(request):
     return executeTrade(test_token, test_lot_size, test_tp, test_sl, test_symbol)
 
 # -----------------------------------------
-# Async function to fetch contract updates
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
+import json
+import asyncio
+
+@csrf_exempt
 async def testContract(request):
-    """
-    Django async view to fetch contract updates and display them as HTML.
-    """
-    contract_id = '269899111088'
+    contract_id = '271228658368'
     app_id = "65102"
     api_token = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"
 
-    try:
-        # Fetch contract updates
-        updates = await fetch_contract_updates(contract_id, api_token, app_id)
+    if request.method == 'POST':
+        try:
+            # trade = testApp(request)
+            updates = await fetch_contract_updates(contract_id, api_token, app_id)
+            print(updates)
 
-        # Convert updates to HTML content
-        html_content = "<h1>Contract Updates</h1><ul>"
-        if isinstance(updates, list):  # If updates are available
-            for update in updates:
-                html_content += f"<li>{update}</li>"
-        elif isinstance(updates, dict) and 'error' in updates:  # If an error occurred
-            html_content += f"<li>Error: {updates['error']}</li>"
-        else:
-            html_content += "<li>No updates or error message received.</li>"
+            # Extracting the correct contract details
+            contract_data = updates.get("proposal_open_contract", {})
 
-        html_content += "</ul>"
+            display_name = contract_data.get("display_name", "N/A")
+            entry_price = float(contract_data.get("entry_spot", 0))
+            current_price = float(contract_data.get("current_spot", 0))
+                        
+            entry_time = contract_data.get("date_settlement")
+            current_time = contract_data.get("current_spot_time")
 
-        # Return the HTML response
-        return HttpResponse(html_content, content_type="text/html")
+            # If necessary, convert to datetime objects for display purposes:
+            entry_time_datetime = datetime.utcfromtimestamp(entry_time)
+            current_time_datetime = datetime.utcfromtimestamp(current_time)
 
-    except Exception as e:
-        # Handle exceptions and return an error response
-        error_message = str(e)
-        return HttpResponse(f"<h1>Error: {error_message}</h1>", content_type="text/html")
+            # If you need to send them as strings for any reason, convert to ISO format (optional):
+            entry_time_str = entry_time_datetime.isoformat()
+            current_time_str = current_time_datetime.isoformat()
+
+
+            # Extracting stop loss and take profit correctly
+            limit_order = contract_data.get("limit_order", {})
+            stop_loss = float(limit_order.get("stop_loss", {}).get("value", 0))
+            take_profit = float(limit_order.get("take_profit", {}).get("value", 0))
+
+            return JsonResponse({
+                "displayName": display_name,
+                "entryPrice": entry_price,
+                "currentPrice": current_price,
+                "stopLoss": stop_loss,
+                "takeProfit": take_profit,
+                "entryTime":entry_time,
+                "currentTime":  current_time
+            })
+
+        except Exception as e:
+            return JsonResponse({"error": str(e)}, status=500)
 
 # -----------------------------------------
 

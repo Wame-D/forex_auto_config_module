@@ -26,6 +26,7 @@ from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
+from trade.views import testContract
 
 urlpatterns = [
     #swagger
@@ -52,5 +53,10 @@ urlpatterns = [
     path('save_profit_and_loss/', profit_and_loss_margin, name='profit_and_loss_margin' ),
     path('get_profit_and_loss/', get_profit_and_loss_margin, name='get_profit_and_loss_margin' ),
     path('delete-candles/', delete_candles, name='delete_candles' ),
+
+    # getting trading contarct
+    path('testContract/', testContract, name='testContract'),
+
+
 
 ]
