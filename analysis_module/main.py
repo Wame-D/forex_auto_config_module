@@ -203,7 +203,7 @@ async def process_symbol(symbol: str, table_name: str) -> Optional[List[Dict[str
             # Save signals to ClickHouse and prepare trades
             if await save_signals_to_clickhouse(signals):
                 logger.info(f"{GREEN}Signals saved successfully for {symbol}.{RESET}")
-                # print("Check this line to configure trade!!!! ASAP Line 208 and Method 70")
+                print("Check this line to configure trade!!!! ASAP Line 208 and Method 70")
                 # await prepare_trading(signals, STRATEGY_TYPES, symbol)
             else:
                 logger.error(f"Failed to save signals to ClickHouse for {symbol}.")
