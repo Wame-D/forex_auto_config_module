@@ -10,6 +10,7 @@ logging.basicConfig(level=logging.INFO)
 GREEN = '\033[92m'
 RESET = '\033[0m'  
 
+
 def is_price_within_safe_zone(
     candle: Dict[str, Any], signal_type: str, safe_zone_top: float, safe_zone_bottom: float
 ) -> bool:
@@ -116,14 +117,14 @@ def filter_perfect_signals(signals: List[Dict[str, Any]]) -> List[Dict[str, Any]
             logger.warning(f"Skipping signal with invalid SL/Entry values: {signal}")
         except KeyError as e:
             logger.error(f"Missing key in signal data: {e}")
-    logger.info(f"Filtered signals: {len(filtered_signals)} out of {len(signals)}.")
+    # logger.info(f"Filtered signals: {len(filtered_signals)} out of {len(signals)}.")
     return filtered_signals
 
 def analyze_malaysian_strategy(
     candles_4h: List[Dict[str, Any]], candles_15m: List[Dict[str, Any]], symbol
 ) -> List[Dict[str, Any]]:
     """Analyzes forex data using the enhanced Malaysian Forex Trading Strategy."""
-    logger.info("Starting analysis for Enhanced Malaysian Forex Strategy...")
+    # logger.info("Starting analysis for Enhanced Malaysian Forex Strategy...")
     signals = []
 
     try:
@@ -191,7 +192,7 @@ def analyze_malaysian_strategy(
         # Filter signals to retain only perfect ones
         perfect_signals = filter_perfect_signals(signals)
 
-        logger.info(f"Generated {len(perfect_signals)} perfect signals.")
+        # logger.info(f"Generated {len(perfect_signals)} perfect signals.")
         return perfect_signals
 
     except Exception as e:
@@ -214,12 +215,12 @@ def analysis(
 
     if "Malaysian" in strategy_type:
         malaysian_signals = analyze_malaysian_strategy(df_4h, df_15m, symbol)
-        print(f"{GREEN }Malaysian Strategy Signals generet:{RESET}")  
+        # print(f"{GREEN }Malaysian Strategy Signals generet:{RESET}")  
         signals.extend(malaysian_signals)
 
     if "Moving Average" in strategy_type:
         moving_avg_signals = moving_average_strategy(df_4h, df_30m)
-        print("Moving Average Strategy Signals:", moving_avg_signals)  # Debugging statement
+        # ("Moving Average Strategy Signals:", moving_avg_signals)  # Debugging statement
         signals.extend(moving_avg_signals)
 
     return signals

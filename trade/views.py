@@ -11,7 +11,21 @@ import json
 from websocket import create_connection
 from deriv_api import DerivAPI
 
-from .buyAndSell import fxTradeMultiplier, fxCloseMultiplierTrade
+from .buyAndSell import fxTradeMultiplier
+from trade.continuousTradeMonitor import monitor_trades  # Import the monitoring function
+
+
+#Trigger continuous trade monitor to start
+async def test_monitor_trades(request):
+    """
+    Django async view to start monitoring active trades.
+    """
+    try:
+        print(" Starting trade monitoring via Django route...")
+        asyncio.create_task(monitor_trades())  # Run monitoring in the background
+        return JsonResponse({"message": "Trade monitoring started successfully."})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 # -----------------------------------------

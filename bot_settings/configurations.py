@@ -12,7 +12,7 @@ from authorise_deriv.views import balance
 from trade.tradeHistory import fetch_profit_table
 # Initialize ClickHouse client
 client = get_clickhouse_client()
-
+print
 # ANSI escape codes for colors
 RED = '\033[91m'
 GREEN = '\033[92m'
@@ -90,7 +90,7 @@ async def eligible_user(email,token):
             ALTER TABLE userdetails UPDATE trading_today = {trading}
             WHERE email = '{email}'
         """)
-        print(f"{YELLOW}[INFO] trades for user {email} exceeded the limit.{RESET}")
+        # print(f"{YELLOW}[INFO] trades for user {email} exceeded the limit.{RESET}")
         return 'false'
     else:
         # cheking if loss or win has exceeded his / her choice
@@ -107,7 +107,7 @@ async def eligible_user(email,token):
             """)
 
             # Use the color in the print statement
-            print(f"{YELLOW}[INFO] loss or win for user {email} exceeded the limit, not trading today Trade skipped.{RESET}")
+            # print(f"{YELLOW}[INFO] loss or win for user {email} exceeded the limit, not trading today Trade skipped.{RESET}")
             return 'false'
         elif total_loss >= overall_loss or total_win >=  overall_win:
             trading = 'false'
@@ -116,7 +116,7 @@ async def eligible_user(email,token):
                 WHERE email = '{email}'
             """)
             # Use the color in the print statement
-            print(f"{YELLOW}[INFO] overall loss or win for user {email} exceeded the limit, not trading today Trade skipped.{RESET}")
+            # print(f"{YELLOW}[INFO] overall loss or win for user {email} exceeded the limit, not trading today Trade skipped.{RESET}")
             return 'false'
         else:
             return 'true'

@@ -53,7 +53,7 @@ def calculate_adx(candles: List[Dict[str, Any]], period: int) -> float:
         # print_debug(f"Calculated ADX: {adx}")
         return adx if adx is not None else 0  # Ensure ADX is not None
     except Exception as e:
-        print_warning(f"Error calculating ADX: {e}")
+        # print_warning(f"Error calculating ADX: {e}")
         return 0  # Return 0 in case of error or invalid ADX calculation
 
 def calculate_rsi(candles: List[Dict[str, Any]], period: int) -> float:
@@ -191,7 +191,7 @@ def moving_average_strategy(candles_4h: List[Dict[str, Any]], candles_30m: List[
                 if candle["timestamp"] >= current_candle["timestamp"] - timedelta(hours=2)
             )
             if not valid:
-                print_info(f"Signal at index {i} invalidated by 30-minute chart. Skipping...")
+                # print_info(f"Signal at index {i} invalidated by 30-minute chart. Skipping...")
                 continue
 
             # Check for candlestick pattern confirmation
@@ -229,7 +229,7 @@ def moving_average_strategy(candles_4h: List[Dict[str, Any]], candles_30m: List[
             }
             signals.append(signal)
 
-            print_info(f"Generated trading signal for {pair} at index {i}: {signal}")
+            # print_info(f"Generated trading signal for {pair} at index {i}: {signal}")
 
         return signals
 

@@ -286,7 +286,7 @@ def save_symbols(request):
 
             # Prepare and execute bulk insertion
             for symbol in symbols:
-                print(symbol, email, token)
+                # print(symbol, email, token)
                 client.command(f"""
                     INSERT INTO symbols (email, token, symbol, created_at) 
                     VALUES ('{email}', '{token}', '{symbol}', NOW())
@@ -631,7 +631,7 @@ def profit_and_loss_margin(request):
             FROM start_stop_table
             WHERE email = '{email}'
             """)
-            print(result.result_set)
+            # print(result.result_set)
             changes = {}
 
             if result :

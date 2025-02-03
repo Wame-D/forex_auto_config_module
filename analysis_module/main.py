@@ -118,7 +118,7 @@ def save_signals_to_clickhouse(signals):
                     (timestamp, Pair, Signal, Entry, SL, TP,Safe_Zone_Top, Safe_Zone_Bottom)
                     VALUES (NOW(), '{signal['Pair']}', '{signal['Signal']}', {signal['Entry']}, {signal['SL']}, {signal['TP']}, {signal['Safe Zone Top']}, {signal['Safe Zone Bottom']})
                 """)
-                print(f"{BLUE}[INFO] Signal stored: {signal}{RESET}")
+                # print(f"{BLUE}[INFO] Signal stored: {signal}{RESET}")
             except Exception as e:
                 print(f"[ERROR] Failed to store signal: {signal}. Error: {e}")
                 logging.error(f"Failed to store signal: {signal}. Error: {e}")

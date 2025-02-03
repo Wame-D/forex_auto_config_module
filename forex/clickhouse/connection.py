@@ -19,8 +19,8 @@ def get_clickhouse_client():
             database='forex_data'
             # secure=True
         )
-        print(f"Result:", _clickhouse_client.query("SELECT 1").result_set[0][0])
-        print(f"{GREEN }Successfully connected to ClickHouse!{RESET}")
+        # print(f"Result:", _clickhouse_client.query("SELECT 1").result_set[0][0])
+        # print(f"{GREEN }Successfully connected to ClickHouse!{RESET}")
     return _clickhouse_client
 
 
