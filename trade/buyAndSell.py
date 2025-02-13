@@ -127,6 +127,9 @@ def fxTradeMultiplier(url, token, symbol, amount, multiplier, take_profit, stop_
        
         # drop_table_query = "DROP TABLE IF EXISTS trades;"
         # client.command(drop_table_query)
+        # delete_query = "TRUNCATE TABLE trades;"
+        # client.command(delete_query)
+
         create_table_query = f"""
             CREATE TABLE IF NOT EXISTS trades (
                 timestamp Nullable(DateTime),

@@ -23,6 +23,7 @@ YELLOW = '\033[93m'
 BLUE = '\033[94m'
 RESET = '\033[0m' 
 
+print
 async def main():
     """
     Main loop.
@@ -42,9 +43,9 @@ async def main():
                 if not table_name:
                     print(f"{RED}[ERROR] No table name found for {symbol}.{RESET}")
                     continue
-                print("")
-                print(f"{BLUE}[INFO] Starting operations for {symbol} (Table: {table_name})...{RESET}")
-                print("")
+                # print("")
+                # print(f"{BLUE}[INFO] Starting operations for {symbol} (Table: {table_name})...{RESET}")
+                # print("")
 
                 now_utc = datetime.utcnow()
                 aligned_time = now_utc.replace(second=0, microsecond=0)
@@ -58,25 +59,25 @@ async def main():
                     await asyncio.sleep(60)
                     continue
 
-                print(f"{GREEN }[INFO] Forex data fetched successfully.{RESET}")
+                # print(f"{GREEN }[INFO] Forex data fetched successfully.{RESET}")
 
                 # Aggregate data
-                print("[INFO] Aggregating data into 4H ,30M and 15M intervals...")
+                # print("[INFO] Aggregating data into 4H ,30M and 15M intervals...")
                 df_4h = aggregate_data(df_minute, "4H")
                 df_15m = aggregate_data(df_minute, "15M")
                 df_30m = aggregate_data(df_minute, "30M")
-                print(f"{GREEN }[INFO] Data aggregation complete.{RESET}")
+                # print(f"{GREEN }[INFO] Data aggregation complete.{RESET}")
 
                 # Analyze strategy and generate signals
-                print("[INFO] Analyzing trading strategy...")    
+                # print("[INFO] Analyzing trading strategy...")    
                 strategy_type = ["Malaysian", "Moving Average"]
                 signals = analysis(df_4h,df_30m, df_15m, strategy_type,symbol)
 
                 if signals:
                     save_signals_to_clickhouse(signals)
                     await prepare_trading(signals)
-                else:
-                    print("[INFO] No trading signals generated.")
+                # else:
+                #     print("[INFO] No trading signals generated.")
 
         except Exception as e:
             print(f"[ERROR] Exception in main loop: {e}")

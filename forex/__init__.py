@@ -32,3 +32,4 @@ initialize_clickhouse()
 
 # Start fetching and saving candles automatically
 start_candle_fetcher_thread()
+
