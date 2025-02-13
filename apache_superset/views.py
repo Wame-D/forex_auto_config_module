@@ -33,6 +33,7 @@ def get_guest_token(request):
 def get_guest_token_for_dashboard(access_token):
     dashboard_id= "81429aff-ef7f-45a7-b31b-2eb06d86c1ce"
     dashboard_id1 = "fa733f1c-698c-47e8-9eeb-b4ab38f0adcf"
+    signals_dashboard = "b1fb63ec-24b8-4204-849d-082da09b2a5c"
     url = "http://109.74.196.98:8088/api/v1/security/guest_token/"
     response = requests.post(
         url,
@@ -51,6 +52,10 @@ def get_guest_token_for_dashboard(access_token):
                     {
                         "type": "dashboard",
                         "id": dashboard_id1,
+                    },
+                         {
+                        "type": "dashboard",
+                        "id": signals_dashboard,
                     }
                 ],
                 "rls": [],
