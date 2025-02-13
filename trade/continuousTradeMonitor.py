@@ -7,7 +7,24 @@ from trade.completeTradeUpdater import update_trade_status
 from concurrent.futures import ThreadPoolExecutor
 
 APP_ID = "65102"
-API_TOKEN = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"
+
+async def get_api_token(contract_id):
+    """
+    Fetch the API token from the database.
+    """
+    try:
+        client = get_clickhouse_client()
+        query = f"SELECT token FROM trades WHERE contract_id = '{contract_id}'"  # Fixed string interpolation
+        result = client.command(query)  # Using `.command()` for ClickHouse in Superset
+        
+        if result:
+            return result.strip()  # Ensuring clean token extraction
+        else:
+            print(f"[get_api_token] No active API token found for contract ID {contract_id}.")
+            return None
+    except Exception as e:
+        print(f"[get_api_token] Error fetching API token for contract {contract_id}: {e}")
+        return None
 
 async def monitor_trades():
     """
@@ -31,8 +48,13 @@ async def monitor_trades():
 
         for contract_id in trades:
             if contract_id not in tasks:
+                api_token = await get_api_token(contract_id)  # Fetch token per contract ID
+                if not api_token:
+                    print(f"[Monitor Trades] No valid API token found for contract {contract_id}. Skipping.")
+                    continue
+
                 print(f"[Monitor Trades] Starting watch task for contract {contract_id}")
-                task = asyncio.create_task(watch_contract(contract_id))
+                task = asyncio.create_task(watch_contract(contract_id, api_token))
                 tasks[contract_id] = task
             else:
                 print(f"[Monitor Trades] Watch task already exists for contract {contract_id}")
@@ -41,18 +63,17 @@ async def monitor_trades():
         print("[Monitor Trades] All tasks finished. Sleeping for 2 seconds.")
         await asyncio.sleep(2)
 
-async def watch_contract(contract_id):
+async def watch_contract(contract_id, api_token):
     """
     Watch contract by fetching updates and monitor asynchronously.
     """
     print(f"[Watch Contract] Monitoring contract {contract_id}...")
-    
+
     try:
-        await fetch_contract_updates(contract_id, API_TOKEN, APP_ID)
+        await fetch_contract_updates(contract_id, api_token, APP_ID)
         print(f"[Watch Contract] Successfully fetched updates for contract {contract_id}")
     except Exception as e:
         print(f"[Watch Contract] Error fetching updates for {contract_id}: {e}")
-
 
 async def fetch_contract_updates(contract_id, api_token, app_id):
     """
@@ -71,20 +92,19 @@ async def fetch_contract_updates(contract_id, api_token, app_id):
                     "proposal_open_contract": 1,
                     "contract_id": contract_id
                 })
-                
+
                 contract_details = response.get("proposal_open_contract", {})
                 print(f"[Fetch Contract Updates] Contract details for ID {contract_id}: {json.dumps(contract_details, indent=4)}")
 
-                buy_price = contract_details.get("buy_price", 0.0)  # Extract buy price
+                buy_price = contract_details.get("buy_price", 0.0)
                 print(f"[Fetch Contract Updates] Buy price: {buy_price}")
 
-                # Check if the contract has ended (either is_sold or status == "sold")
                 if contract_details.get("is_sold") == 1 or contract_details.get("status") == "sold":
                     print(f"[Fetch Contract Updates] Contract {contract_id} has ended. Updating database...")
                     sell_time = contract_details.get("sell_time", "N/A")
                     sell_price = contract_details.get("sell_price", 0.0)
                     profit_loss = contract_details.get("profit", 0.0)
-                    
+
                     await update_trade_status(contract_id, "complete", sell_time, sell_price, profit_loss, buy_price)
                     print(f"[Fetch Contract Updates] Database updated for contract {contract_id}.")
                     break
@@ -96,10 +116,10 @@ async def fetch_contract_updates(contract_id, api_token, app_id):
                 await asyncio.sleep(5)  # Wait before retrying if an error happens
 
             await asyncio.sleep(2)  # Non-blocking sleep for 2 seconds
-    
+
     except Exception as e:
         print(f"[Fetch Contract Updates] Authorization error for contract {contract_id}: {e}")
-    
+
     finally:
         await api.disconnect()
         print(f"[Fetch Contract Updates] Disconnected from Deriv API for contract {contract_id}.")
