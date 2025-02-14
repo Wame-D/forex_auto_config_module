@@ -45,7 +45,8 @@ INSTALLED_APPS = [
     'drf_yasg',
     'django_crontab',
     'rest_framework',
-    'notifications'
+    'notifications',
+    'forex', 
     # 'django_cron',
 ]
 

@@ -1,6 +1,9 @@
 # Stage 1: Builder (to install dependencies)
 FROM python:3-alpine AS builder
 
+# Install system dependencies
+RUN apt-get update && apt-get install -y cron
+
 WORKDIR /app
 
 # Install build dependencies (for compiling Python packages with C extensions)

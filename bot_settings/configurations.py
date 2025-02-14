@@ -12,7 +12,6 @@ from authorise_deriv.views import balance
 from trade.tradeHistory import fetch_profit_table
 # Initialize ClickHouse client
 client = get_clickhouse_client()
-print
 # ANSI escape codes for colors
 RED = '\033[91m'
 GREEN = '\033[92m'
