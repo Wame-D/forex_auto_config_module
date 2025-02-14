@@ -1,10 +1,3 @@
-# Constants
-# DERIV_APP_ID = 65102  # Deriv API app ID
-# GRANULARITY = 60  # Timeframe for each candle (1 minute granularity)
-# CAT_TIMEZONE = pytz.timezone("Africa/Harare")  # Central Africa Time for timestamp display
-# RETRY_ATTEMPTS = 5  # Number of retry attempts in case of failure
-# RETRY_DELAY = 5  # Delay between retry attempts (in seconds)
-
 granularity = 60 
 deriv_app_id = 65102
 
@@ -16,6 +9,8 @@ import asyncio
 import threading
 from analysis_module.main import main 
 import logging
+from bot_settings.configurations import auto_config
+from trade.continuousTradeMonitor import monitor_trades
 
 RED = '\033[91m'
 GREEN = '\033[92m'
@@ -415,6 +410,7 @@ async def store_candle_in_clickhouse(candle, table_name, cat_timezone):
     except Exception as e:
         print(f"Error storing candle: {e}")
 
+
 # startimg candle fetching automatically
 def start_candle_fetcher():
     """
@@ -435,7 +431,9 @@ def start_candle_fetcher():
                 fetch_usdjpy_candles(),
                 fetch_v75(),
                 fetch_gold_candles(),
-                main()
+                main(),
+                auto_config(),
+                monitor_trades()
             )
         )
         

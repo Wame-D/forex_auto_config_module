@@ -133,59 +133,91 @@ update todays balance
 import logging
 logging.basicConfig(filename='/logfile.log', level=logging.INFO, format='%(asctime)s - %(message)s')
 
-def auto_config():
+import asyncio
+
+async def auto_config():
+    client = get_clickhouse_client()
+    today_date = datetime.today().date()  # Get today's date
     logging.info(f"_________________________________________________________________________________________________________________")
-    logging.info(f"{BLUE}Running auto_config at {datetime.now()}{RESET}")
+    print(f"{BLUE}Running auto_config at {datetime.now()}{RESET}")
     logging.info(f"_________________________________________________________________________________________________________________")
 
+    try:
+        result = client.query(f"""
+            SELECT email, stop_date, start_date
+            FROM start_stop_table
+            WHERE DATE(stop_date) = '{today_date}'
+        """)
 
-    # shuting dow all users who set stop time to today
-    trading = 'false'
-    client.command(f"""
-        ALTER TABLE userdetails UPDATE trading_today = {trading}, trading = {trading}
-        WHERE DATE(stop_date) = '{today_date}'
-    """)
+        for row in result.result_set:
+            email, stop_date, start_date = row[0], row[1], row[2]
+            if stop_date == today_date:
+                trading = 'false'
+                client.command(f"""
+                    ALTER TABLE userdetails UPDATE trading_today = {trading}, trading = {trading}
+                    WHERE email = '{email }'
+                """)
+            elif start_date == today_date:
+                trading = 'true'
+                client.command(f"""
+                    ALTER TABLE userdetails UPDATE trading_today = {trading}, trading = {trading}
+                    WHERE email = '{email }'
+                """)
+                print(f"{BLUE}Running auto_config at, started trading {RESET}")
+            else:
+                print(f"{BLUE}Running auto_config at, no data updated {RESET}")
 
-    # resume trading for all users who were temporariry disabled to to risk limit and win or loss marging
-    client.command(f"""
-        ALTER TABLE userdetails UPDATE trading_today = 'true'
-        WHERE trading = 'true'
-    """)
+        # Resume trading for all users who were temporarily disabled due to risk limit
+        client.command(f"""
+            ALTER TABLE userdetails UPDATE trading_today = 'true'
+            WHERE trading = 'true'
+        """)
 
-    # start trading to all users whoe set start to today
-    client.command(f"""
-        ALTER TABLE userdetails UPDATE trading_today = true, trading = true
-        WHERE DATE(start_date) = '{today_date}'
-    """)
+        # Update user balances
+        result1 = client.query(f"""
+            SELECT token, email
+            FROM userdetails
+            WHERE trading = 'true'
+        """)
 
-    # updating user alance at 12:00 mid night
-    result = client.query(f"""
-        SELECT token, start_date
-        FROM userdetails
-        WHERE trading = 'true'
-    """)
+        for row in result1.result_set:
+            token, email = row[0], row[1]
+            account_balance = balance(token)  # Make sure this function is defined
 
-    # tokens = result.result_set[0][0]
-    # tokens = [row[0] for row in result.result_set]
-
-    for row in result.result_set:
-        token, start_date = row[0], row[1] 
-        # getting balance and updating it
-        try:
-            account_balance = balance(token)
-            # updating balance
             client.command(f"""
                 ALTER TABLE userdetails UPDATE balance_today = {account_balance}
                 WHERE token = {token}
             """)
 
-            # updating balance for new user at 12_00 midight
-            if start_date == today_date:
-                client.command(f"""
-                ALTER TABLE userdetails UPDATE balance_today = {account_balance}, balance = {account_balance}
-                WHERE token = {token}
-                """)
-        except Exception as e:
-            print(f"[ERROR] Error updating balances: {e}")
-            logging.error(f"Error updating balance: {e}")
+            create_table_query = f"""
+                CREATE TABLE IF NOT EXISTS balances (
+                    timestamp DateTime,
+                    balance Float32,
+                    email String
+                ) ENGINE = MergeTree()
+                ORDER BY timestamp
+            """
+            client.command(create_table_query)
+            print(f"{BLUE}Running auto_config at, tabble created {RESET}")
 
+            insert_query = f"""
+                INSERT INTO balances (timestamp, balance, email)
+                VALUES (NOW(), {account_balance}, {email})
+            """
+            client.command(insert_query)
+
+        logging.info("Successfully updated balances.")
+
+    except Exception as e:
+        print(f"Error running auto_config: {e}")
+    
+    # Sleep for 4 hours before the next run
+    logging.info(f"Sleeping for 4 hours...")
+    await asyncio.sleep(4 * 60 * 60)  # 4 hours in seconds
+
+    # Call the function again after sleeping
+    await auto_config()  # Recursively call the function
+
+# To run auto_config asynchronously
+async def run_auto_config():
+    await auto_config()

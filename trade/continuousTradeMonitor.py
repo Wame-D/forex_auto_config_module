@@ -150,7 +150,7 @@ async def fetch_contract_updates(contract_id, api_token, app_id):
                     await asyncio.sleep(5)
                     continue
 
-                print(f"[Fetch Contract Updates] Contract details for ID {contract_id}: {json.dumps(contract_details, indent=4)}")
+                # print(f"[Fetch Contract Updates] Contract details for ID {contract_id}: {json.dumps(contract_details, indent=4)}")
 
                 buy_price = contract_details.get("buy_price", 0.0)
                 print(f"[Fetch Contract Updates] Buy price: {buy_price}")

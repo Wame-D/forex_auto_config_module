@@ -23,7 +23,7 @@ def send_request(ws, request):
 
 def fxTradeMultiplier(email, url, token, symbol, amount, multiplier, take_profit, stop_loss):
 
-    email='wamedaniel9@gmail.com'
+    # email='wamedaniel9@gmail.com'
 
     # Establish WebSocket connection
     try:
