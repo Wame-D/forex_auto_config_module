@@ -2,7 +2,7 @@
 FROM python:3-alpine AS builder
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y cron
+# RUN apt-get update && apt-get install -y cron
 
 WORKDIR /app
 
