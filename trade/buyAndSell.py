@@ -21,7 +21,10 @@ def send_request(ws, request):
         print(f"Error in response: {response_data['error']}")
     return response_data
 
-def fxTradeMultiplier(url, token, symbol, amount, multiplier, take_profit, stop_loss):
+def fxTradeMultiplier(email, url, token, symbol, amount, multiplier, take_profit, stop_loss):
+
+    email='wamedaniel9@gmail.com'
+
     # Establish WebSocket connection
     try:
         ws = create_connection(url)
@@ -127,12 +130,19 @@ def fxTradeMultiplier(url, token, symbol, amount, multiplier, take_profit, stop_
        
         # drop_table_query = "DROP TABLE IF EXISTS trades;"
         # client.command(drop_table_query)
+        # delete_query = "TRUNCATE TABLE trades;"
+        # client.command(delete_query)
+
+        # alter_query = "ALTER TABLE trades ADD COLUMN email String;"
+        # client.command(alter_query)
+
         create_table_query = f"""
             CREATE TABLE IF NOT EXISTS trades (
                 timestamp Nullable(DateTime),
                 contract_id Int128,  -- Required (not nullable)
                 token Nullable(String),
                 trade_status Nullable(String),
+                email Nullable(String),
                 symbol Nullable(String),
                 amount Nullable(Float32),
                 take_profit Nullable(Float32),
@@ -152,8 +162,8 @@ def fxTradeMultiplier(url, token, symbol, amount, multiplier, take_profit, stop_
 
         # Insert the candle into the table
         insert_query = f"""
-            INSERT INTO trades (contract_id, token, trade_status, symbol, amount, take_profit, stop_loss,timestamp,currency,contract_type,multiplier)
-            VALUES ({contract_id}, '{token}', 'active', '{symbol}', {amount}, {take_profit}, {stop_loss}, NOW(),'usd','MULTUP',{multiplier});
+            INSERT INTO trades (contract_id, token, trade_status,email, symbol, amount, take_profit, stop_loss,timestamp,currency,contract_type,multiplier)
+            VALUES ({contract_id}, '{token}', 'active','{email}', '{symbol}', {amount}, {take_profit}, {stop_loss}, NOW(),'usd','MULTUP',{multiplier});
         """
         client.command(insert_query)
         print(f"----------------------------------------------------------- {contract_id} token is {token} trade status : Active, amount {amount}, takeprofit = {take_profit} stoploss = {stop_loss}")

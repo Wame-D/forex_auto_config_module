@@ -136,7 +136,7 @@ def filter_perfect_signals(signals: List[Dict[str, Any]]) -> List[Dict[str, Any]
             logger.warning(f"Skipping signal with invalid SL/Entry values: {signal}")
         except KeyError as e:
             logger.error(f"Missing key in signal data: {e}")
-    logger.info(f"Filtered signals: {len(filtered_signals)} out of {len(signals)}.")
+    # logger.info(f"Filtered signals: {len(filtered_signals)} out of {len(signals)}.")
     return filtered_signals
 
 def malaysian_strategy(
@@ -211,7 +211,7 @@ def malaysian_strategy(
         # Step 10: Filter signals to retain only perfect ones
         perfect_signals = filter_perfect_signals(signals)
 
-        logger.info(f"Generated {len(perfect_signals)} perfect signals.")
+        # logger.info(f"Generated {len(perfect_signals)} perfect signals.")
         return perfect_signals
 
     except Exception as e:

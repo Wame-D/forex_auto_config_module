@@ -152,7 +152,7 @@ async def prepare_trading(signals: List[Dict[str, Any]], strategy_type: List[str
                         risk_amount = await calculate_risk(token, signal['Entry'], signal['SL'])
                         if risk_amount > 0:
                             logger.info(f"{YELLOW}Placing {signal['Signal']} trade for {symbol} with risk amount {risk_amount}.{RESET}")
-                            executeTrade(token, risk_amount, signal['TP'], signal['SL'], symbol)
+                            executeTrade(email, token, risk_amount, signal['TP'], signal['SL'], symbol)
                             logger.info(f"{GREEN}{signal['Signal']} trade executed successfully.{RESET}")
                         else:
                             logger.warning(f"Risk amount too low for token {token}. Trade skipped.")

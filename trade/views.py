@@ -11,15 +11,31 @@ import json
 from websocket import create_connection
 from deriv_api import DerivAPI
 
-from .buyAndSell import fxTradeMultiplier, fxCloseMultiplierTrade
-from django.views.decorators.csrf import csrf_exempt
+from .buyAndSell import fxTradeMultiplier
+
+from trade.continuousTradeMonitor import monitor_trades  # Import the monitoring function
+
+async def test_monitor_trades(request):
+    """
+    Django async view to start monitoring active trades.
+    """
+    try:
+        print("Starting trade monitoring via Django route...")
+
+        # Await the coroutine properly
+        await monitor_trades()
+
+        return JsonResponse({"message": "Trade monitoring started successfully."})
+    except Exception as e:
+        return JsonResponse({"error": str(e)}, status=500)
 
 
 # -----------------------------------------
 # Testing FUNCTION
-def executeTrade(token, lot_size, tp, sl, symbol):
+def executeTrade(email,token, lot_size, tp, sl, symbol):
     # Define the proposal details
     proposal_details = {
+        "email": email,
         "url": "wss://ws.binaryws.com/websockets/v3?app_id=65102",
         "token": token, 
         "symbol": symbol,
@@ -31,6 +47,7 @@ def executeTrade(token, lot_size, tp, sl, symbol):
 
     # Call the fxTradeMultiplier function with the proposal details
     response = fxTradeMultiplier(
+        email = proposal_details["email"],
         url=proposal_details["url"],
         token=proposal_details["token"],
         symbol=proposal_details["symbol"],
@@ -65,7 +82,10 @@ import asyncio
 
 @csrf_exempt
 async def testContract(request):
-    contract_id = '271228658368'
+    """
+    Django async view to fetch contract updates and display them as HTML.
+    """
+    contract_id = '271524684528'
     app_id = "65102"
     api_token = "a1-Rpkn31phHKJihM7NtL3HoMNiOb9zy"
 
