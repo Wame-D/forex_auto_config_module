@@ -29,7 +29,8 @@ def get_clickhouse_client():
         port='8123',
         user='default',
         password='#00forexd4h',
-        database='forex_data'
+        database='forex_data',
+        # secure=True
     )
     return _clickhouse_client
 
