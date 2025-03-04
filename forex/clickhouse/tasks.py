@@ -10,7 +10,7 @@ import threading
 import logging
 
 from authorise_deriv.views import balance
-from .user_eligibility import  auto_trading_monitor
+from .user_eligibility_checker import  auto_trading_monitor
 
 RED = '\033[91m'
 GREEN = '\033[92m'
@@ -50,7 +50,6 @@ async def auto_config():
             if stop_date <= today_date:
                 trading = 'false'
                 print(f"{GREEN}Disabling trading for {email}{RESET }")
-                print("")
                 client.command(f"""
                     ALTER TABLE userdetails UPDATE trading_today = {trading}, trading = {trading}
                     WHERE email = '{email}'
@@ -58,7 +57,6 @@ async def auto_config():
             elif start_date == today_date:
                 trading = 'true'
                 print(f"{GREEN}Enabling trading for {email}{RESET }")
-                print("")
                 client.command(f"""
                     ALTER TABLE userdetails UPDATE trading_today = {trading}, trading = {trading}
                     WHERE email = '{email}'
@@ -68,10 +66,10 @@ async def auto_config():
 
         # Resume trading for all eligible users
         print(f"{YELLOW}Resuming trading for all eligible users{RESET}")
-        print("")
+        trading = 'true'
         client.command(f"""
-            ALTER TABLE userdetails UPDATE trading_today = 'true'
-            WHERE trading = 'true'
+            ALTER TABLE userdetails UPDATE trading_today ={trading}
+            WHERE trading = '1'
         """)
 
         # Update balances
