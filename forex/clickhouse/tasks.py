@@ -10,6 +10,7 @@ import threading
 import logging
 
 from authorise_deriv.views import balance
+from .user_eligibility import  auto_trading_monitor
 
 RED = '\033[91m'
 GREEN = '\033[92m'
@@ -37,7 +38,7 @@ async def auto_config():
             FROM start_stop_table
         """)
 
-        print(f"Query result: {result.result_set}")  # Debugging
+        # print(f"Query result: {result.result_set}")  # Debugging
 
         for row in result.result_set:
             email, stop_date, start_date = row[0], row[1], row[2]
@@ -54,7 +55,7 @@ async def auto_config():
                     ALTER TABLE userdetails UPDATE trading_today = {trading}, trading = {trading}
                     WHERE email = '{email}'
                 """)
-            elif start_date <= today_date:
+            elif start_date == today_date:
                 trading = 'true'
                 print(f"{GREEN}Enabling trading for {email}{RESET }")
                 print("")
@@ -78,8 +79,6 @@ async def auto_config():
             SELECT token, email
             FROM userdetails
         """)
-
-        print(f"Balance update query result: {result1.result_set}")  # Debugging
 
         for row in result1.result_set:
             token, email = row[0], row[1]
@@ -119,8 +118,10 @@ async def auto_config():
 
 
 """
-This method
+This method  handles calculations based on user's choices on when to start and stop trading that day or another day
+
 """
+'false',
 # startimg candle fetching automatically
 def start_candle_fetcher():
     """
@@ -134,7 +135,7 @@ def start_candle_fetcher():
         # Run the async tasks
         loop.run_until_complete(
             asyncio.gather(
-                fetch_gold_candles(),
+                auto_trading_monitor(),
                 auto_config(),
             )
         )
