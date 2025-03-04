@@ -1,4 +1,3 @@
-
 import pytz  # Import pytz for timezone handling
 import asyncio
 import threading
@@ -22,8 +21,8 @@ def start_candle_fetcher():
         loop.run_until_complete(
             asyncio.gather(
                 enable_disable_accounts(),
-                auto_trading_monitor(),
                 balance__tracker(),
+                auto_trading_monitor(),
             )
         )
         

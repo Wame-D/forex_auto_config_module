@@ -44,7 +44,7 @@ async def balance__tracker():
                 ) ENGINE = MergeTree()
                 ORDER BY timestamp
             """)
-
+            
             client.command(f"""
                 INSERT INTO balances (timestamp, balance, email)
                 VALUES (NOW(), {account_balance}, '{email}')
@@ -53,7 +53,7 @@ async def balance__tracker():
         print(f"{GREEN}Successfully updated balances.{RESET}")
 
     except Exception as e:
-        print(f"Error running auto_config: {e}")
+        print(f"{RED}Error running auto_config: {e}{RESET}")
         raise
 
     # Sleep for 2 before rerunning
