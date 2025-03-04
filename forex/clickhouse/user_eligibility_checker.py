@@ -12,6 +12,9 @@ RESET = '\033[0m'  # Reset to default color
 async def auto_trading_monitor():
     client = get_clickhouse_client()
     today_date = datetime.today().date()
+    print("")
+    print(f"{BLUE}_________________________________ USER ELIGIBILITY CHECKER_______________________________{RESET}")
+    print("")
     print(f"{BLUE}Running auto_trading_monitor at {datetime.now()}{RESET}")
 
     try:

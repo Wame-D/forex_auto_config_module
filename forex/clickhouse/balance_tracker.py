@@ -11,9 +11,9 @@ RESET = '\033[0m'
 
 async def balance__tracker():
     client = get_clickhouse_client()
-    today_date = datetime.today().date()
+
     print("")
-    print(f"{BLUE}___________________________________________________________________________________{RESET}")
+    print(f"{BLUE}___________________________________ BALANCE TRACKER____________________________________{RESET}")
     print("")
     print(f"{BLUE}Running balance__tracker at {datetime.now()}{RESET}")
     print("")
@@ -44,7 +44,6 @@ async def balance__tracker():
                 ) ENGINE = MergeTree()
                 ORDER BY timestamp
             """)
-            print("Balance table created")
 
             client.command(f"""
                 INSERT INTO balances (timestamp, balance, email)
