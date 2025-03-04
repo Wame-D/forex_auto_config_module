@@ -40,25 +40,11 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'apache_superset',
-    'trade',
     'drf_yasg',
-    'django_crontab',
     'rest_framework',
-    'notifications',
     'forex', 
-    # 'django_cron',
 ]
 
-# CRON_CLASSES = [
-#    'bot_settings.configurations.AutoConfigCronJob',
-# ]
-
-CRONJOBS = [
-    ('40 11 * * *', 'bot_settings.configurations.auto_config'),
-    ('50 23 * * *', 'bot_settings.configurations.auto_config')
-    # Add more cron jobs as needed
-]
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'whitenoise.middleware.WhiteNoiseMiddleware',
