@@ -11,6 +11,7 @@ import logging
 
 from authorise_deriv.views import balance
 from .user_eligibility_checker import  auto_trading_monitor
+from .balance_tracker import balance__tracker
 
 RED = '\033[91m'
 GREEN = '\033[92m'
@@ -72,39 +73,6 @@ async def auto_config():
             WHERE trading = '1'
         """)
 
-        # Update balances
-        result1 = client.query(f"""
-            SELECT token, email
-            FROM userdetails
-        """)
-
-        for row in result1.result_set:
-            token, email = row[0], row[1]
-            print(f"{BLUE}Updating balance for {email}{RESET}")
-
-            account_balance = await balance(token) 
-            client.command(f"""
-                ALTER TABLE userdetails UPDATE balance_today = {account_balance}
-                WHERE token = '{token}'
-            """)
-
-            client.command("""
-                CREATE TABLE IF NOT EXISTS balances (
-                    timestamp DateTime,
-                    balance Float32,
-                    email String
-                ) ENGINE = MergeTree()
-                ORDER BY timestamp
-            """)
-            print("Balance table created")
-
-            client.command(f"""
-                INSERT INTO balances (timestamp, balance, email)
-                VALUES (NOW(), {account_balance}, '{email}')
-            """)
-
-        print(f"{GREEN}Successfully updated balances.{RESET}")
-
     except Exception as e:
         print(f"Error running auto_config: {e}")
         raise
@@ -115,11 +83,6 @@ async def auto_config():
     await auto_config()
 
 
-"""
-This method  handles calculations based on user's choices on when to start and stop trading that day or another day
-
-"""
-'false',
 # startimg candle fetching automatically
 def start_candle_fetcher():
     """
@@ -135,6 +98,7 @@ def start_candle_fetcher():
             asyncio.gather(
                 auto_trading_monitor(),
                 auto_config(),
+                balance__tracker(),
             )
         )
         
